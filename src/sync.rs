@@ -106,7 +106,10 @@ impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
     fn exec(&self, items: Any) -> Any {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let results: Vec<Any> = arr.iter().map(|item| self.logic.exec(item.clone())).collect();
+            let results: Vec<Any> = arr
+                .iter()
+                .map(|item| self.logic.exec(item.clone()))
+                .collect();
 
             results.into()
         } else {
@@ -130,9 +133,7 @@ impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
 }
 
 /// The `BatchNode` factory
-impl<L: NodeLogic + Clone> BatchLogic<L> {
-    fn new_batch_node(logic: L) -> Node {
-        Node::new(BatchLogic {logic})
-    }
+pub fn new_batch_node<L: NodeLogic + Clone>(logic: L) -> Node {
+    Node::new(BatchLogic { logic })
 }
 
