@@ -2,20 +2,21 @@
 
 **License**: MIT | **Docs**
 
-## Why? Because I could. And because Python is for the weak (Jk, I love you Python, <3).
+## Why? Because I could. And because Python is for the weak 
+#### (Jk, I love you Python, <3).
 
 You looked at PocketFlow and thought, "100 lines? That's cute. But is it *memory-safe*?"
 
 You crave the sweet agony of the borrow checker. You yearn for the moral superiority that comes with writing everything in Rust. You, my friend, are a true masochist. And this is the LLM framework for you.
 
-Mercury is a line-by-line, crate-by-painstaking-crate translation of PocketFlow into God's own programming language, Rust.
+Mercury is a line-by-line, crate-by-painstaking-crate translation of PocketFlow into the best programming language, Rust.
 
 
 ### Features:
 
 *   **Blazingly Fast?** Probably. I haven't benchmarked it. But it's in Rust, so it *feels* faster.
 *   **Zero Dependencies?** Laughed in Cargo. But we try to keep it minimal.
-*   **100 Lines?** I didn't count, but yeah, don't count on that one`.
+*   **100 Lines?** When you think about it, what is a 100? And what is a line... No.
 *   **Agentic Coding?** Let the compiler be your agent. It will tell you all the ways you've failed.
 
 ### Get Started (If You Dare)
