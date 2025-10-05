@@ -1,34 +1,33 @@
 use std::collections::HashMap;
 
+/// The Alias for serde_json::Value since I use it a lot
+pub type Any = serde_json::Value;
+
+/// ------ Base Node -------------------------------------------------------
+/// Defines the fundamental logic that is common to any "Node" of the system
 #[derive(Clone, Debug, Default)]
 pub struct ExecInput {
-    value: serde_json::Value,
+    value: Any,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct ExecOutput {
-    value: serde_json::Value,
+    value: Any,
 }
 
-pub struct NodeCore {
-    params: HashMap<String, serde_json::Value>,
-    successors: HashMap<String, Box<dyn Node>>,
+#[derive(Clone)]
+pub struct Node {
+    data: NodeCore,
+    behaviour: Box<dyn NodeLogic>,
 }
 
-pub struct ConditionalTransition {
-    node: Box<dyn Node>,
-    action: String,
-}
-
-pub trait Node {
-    fn core_ref(&self) -> &NodeCore;
-    fn core_mut_ref(&mut self) -> &mut NodeCore;
-    fn set_params(&mut self, params: HashMap<String, serde_json::Value>) {
-        self.core_mut_ref().params = params;
+impl Node {
+    fn set_params(&mut self, params: HashMap<String, Any>) {
+        self.data.params = params;
     }
-    fn next(&mut self, node: Box<dyn Node>, action: Option<String>) -> Box<dyn Node> {
+    fn next(mut self, node: Node, action: Option<String>) -> Self {
         let action: String = action.unwrap_or("default".into());
-        if self.core_ref().successors.contains_key(&action) {
+        if self.data.successors.contains_key(&action) {
             log::warn!(
                 "{}",
                 format!(
@@ -37,10 +36,26 @@ pub trait Node {
                 )
             );
         }
-        self.core_mut_ref().successors.insert(action, node.clone());
-        node
+        self.data.successors.insert(action, node.clone());
+        self
     }
-    fn prep(&self, _shared: &mut HashMap<String, serde_json::Value>) -> ExecInput {
+
+    fn run(&self, shared: &mut HashMap<String, Any>) -> Option<String> {
+        let p = self.behaviour.prep(&self.data.params, shared);
+        let e = self.behaviour.exec(p.clone());
+        self.behaviour.post(shared, p, e)
+    }
+}
+
+
+#[derive(Clone)]
+pub struct NodeCore {
+    params: HashMap<String, Any>,
+    successors: HashMap<String, Node>,
+}
+
+pub trait NodeLogic: Send + Sync {
+    fn prep(&self, _params: &HashMap<String, Any>, _shared: &mut HashMap<String, serde_json::Value>) -> ExecInput {
         ExecInput::default()
     }
     fn exec(&self, _input: ExecInput) -> ExecOutput {
@@ -48,23 +63,19 @@ pub trait Node {
     }
     fn post(
         &self,
-        _shared: &mut HashMap<String, serde_json::Value>,
+        _shared: &mut HashMap<String, Any>,
         _prep_res: ExecInput,
         _exec_res: ExecOutput,
     ) -> Option<String> {
         None
     }
-    fn run(&self, shared: &mut HashMap<String, serde_json::Value>) -> Option<String> {
-        let p = self.prep(shared);
-        let e = self.exec(p.clone());
-        self.post(shared, p, e)
-    }
 
-    fn clone_box(&self) -> Box<dyn Node>;
+    fn clone_box(&self) -> Box<dyn NodeLogic>;
 }
 
-impl Clone for Box<dyn Node> {
+impl Clone for Box<dyn NodeLogic> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
 }
+
