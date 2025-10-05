@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// The Alias for serde_json::Value since I use it a lot
-pub type Any = serde_json::Value;
+pub type NodeValue = serde_json::Value;
 
 /// ------ Base Node Logic -------------------------------------------------------
 /// Defines the fundamental logic that is common to any "Node" of the system
@@ -18,7 +18,7 @@ impl Node {
             behaviour: Box::new(behaviour),
         }
     }
-    fn set_params(&mut self, params: HashMap<String, Any>) {
+    fn set_params(&mut self, params: HashMap<String, NodeValue>) {
         self.data.params = params;
     }
     fn next(self, node: Node) -> Self {
@@ -38,7 +38,7 @@ impl Node {
         self
     }
 
-    fn run(&self, shared: &mut HashMap<String, Any>) -> Option<String> {
+    fn run(&self, shared: &mut HashMap<String, NodeValue>) -> Option<String> {
         let p = self.behaviour.prep(&self.data.params, shared);
         let e = self.behaviour.exec(p.clone());
         self.behaviour.post(shared, p, e)
@@ -47,22 +47,22 @@ impl Node {
 
 #[derive(Default, Clone)]
 pub struct NodeCore {
-    params: HashMap<String, Any>,
+    params: HashMap<String, NodeValue>,
     successors: HashMap<String, Node>,
 }
 
 pub trait NodeLogic: Send + Sync + 'static {
-    fn prep(&self, _params: &HashMap<String, Any>, _shared: &HashMap<String, Any>) -> Any {
-        Any::default()
+    fn prep(&self, _params: &HashMap<String, NodeValue>, _shared: &HashMap<String, Any>) -> Any {
+        NodeValue::default()
     }
-    fn exec(&self, _input: Any) -> Any {
-        Any::default()
+    fn exec(&self, _input: NodeValue) -> Any {
+        NodeValue::default()
     }
     fn post(
         &self,
-        _shared: &mut HashMap<String, Any>,
-        _prep_res: Any,
-        _exec_res: Any,
+        _shared: &mut HashMap<String, NodeValue>,
+        _prep_res: NodeValue,
+        _exec_res: NodeValue,
     ) -> Option<String> {
         None
     }
@@ -99,14 +99,14 @@ impl<L: NodeLogic> BatchLogic<L> {
 /// The advent of the BatchNode
 /// Defining the logic for what is a `BatchLogic` which is a "true" `NodeLogic`.
 impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
-    fn prep(&self, params: &HashMap<String, Any>, shared: &HashMap<String, Any>) -> Any {
+    fn prep(&self, params: &HashMap<String, NodeValue>, shared: &HashMap<String, Any>) -> Any {
         self.logic.prep(params, shared)
     }
 
-    fn exec(&self, items: Any) -> Any {
+    fn exec(&self, items: NodeValue) -> Any {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let results: Vec<Any> = arr
+            let results: Vec<NodeValue> = arr
                 .iter()
                 .map(|item| self.logic.exec(item.clone()))
                 .collect();
@@ -114,15 +114,15 @@ impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
             results.into()
         } else {
             log::error!("items is not an array");
-            Any::Null
+            NodeValue::Null
         }
     }
 
     fn post(
         &self,
-        shared: &mut HashMap<String, Any>,
-        prep_res: Any,
-        exec_res: Any,
+        shared: &mut HashMap<String, NodeValue>,
+        prep_res: NodeValue,
+        exec_res: NodeValue,
     ) -> Option<String> {
         self.logic.post(shared, prep_res, exec_res)
     }
@@ -137,3 +137,36 @@ pub fn new_batch_node<L: NodeLogic + Clone>(logic: L) -> Node {
     Node::new(BatchLogic { logic })
 }
 
+/// With our new composable approach we don't need the "awkward" workaround that Pocketflow
+/// has where they use an orch method instead of the exec method. A Flow is not "special"
+/// it's just a Node who's logic encapsulates other Nodes, changing the `exec` method
+/// to encapsulate that is possible but awkward. Instead, we can simply define aliases
+pub struct FlowLogic {
+    start: Node,
+}
+
+/// A flow really, just is a Node with orchestration logic
+/// to enforce that, we will create a NewType with a "factory" which prebuilds it. 
+#[derive(Clone)]
+pub struct Flow(Node);
+
+/// The Derefs are needed to be able to access the inside `Node` of the `Flow` easily
+impl std::ops::Deref for Flow {
+    type Target = Node;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Flow {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Flow {
+    pub fn new(start: Node) -> Flow {
+        Flow(Node::new(FlowLogic { start }))
+    }
+}
