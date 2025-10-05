@@ -85,6 +85,19 @@ pub struct BatchLogic<L: NodeLogic> {
     logic: L,
 }
 
+/// Convenience functions to create new BatchLogic (note that in our approach)
+/// A `BatchLogic` and a `BatchNode` are not the same.
+/// `BatchLogic` is simply a conceptual struct which marks what we'd want to be batched.
+/// `BatchNode` which we define through the composition of a `Node` with a `NodeLogic` which is
+/// `Clone`-able, is simply a `Node` which applies its logic to a bunch of items (sequentially.)
+impl<L: NodeLogic> BatchLogic<L> {
+    fn new(logic: L) -> Self {
+        BatchLogic { logic }
+    }
+}
+
+/// The advent of the BatchNode
+/// Defining the logic for what is a `BatchLogic` which is a "true" `NodeLogic`.
 impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
     fn prep(&self, params: &HashMap<String, Any>, shared: &HashMap<String, Any>) -> Any {
         self.logic.prep(params, shared)
@@ -115,3 +128,11 @@ impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
         Box::new((*self).clone())
     }
 }
+
+/// The `BatchNode` factory
+impl<L: NodeLogic + Clone> BatchLogic<L> {
+    fn new_batch_node(logic: L) -> Node {
+        Node::new(BatchLogic {logic})
+    }
+}
+
