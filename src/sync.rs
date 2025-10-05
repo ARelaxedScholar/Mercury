@@ -1,0 +1,117 @@
+use std::collections::HashMap;
+
+/// The Alias for serde_json::Value since I use it a lot
+pub type Any = serde_json::Value;
+
+/// ------ Base Node Logic -------------------------------------------------------
+/// Defines the fundamental logic that is common to any "Node" of the system
+#[derive(Clone)]
+pub struct Node {
+    data: NodeCore,
+    behaviour: Box<dyn NodeLogic>,
+}
+
+impl Node {
+    fn new<L: NodeLogic + 'static>(behaviour: L) -> Self {
+        Node {
+            data: NodeCore::default(),
+            behaviour: Box::new(behaviour),
+        }
+    }
+    fn set_params(&mut self, params: HashMap<String, Any>) {
+        self.data.params = params;
+    }
+    fn next(self, node: Node) -> Self {
+        self.next_on(node, "default")
+    }
+    fn next_on(mut self, node: Node, action: &str) -> Self {
+        if self.data.successors.contains_key(action) {
+            log::warn!(
+                "{}",
+                format!(
+                    "Warning: Action {} was found in successors, Overwriting key {}.",
+                    &action, &action
+                )
+            );
+        }
+        self.data.successors.insert(action.to_string(), node);
+        self
+    }
+
+    fn run(&self, shared: &mut HashMap<String, Any>) -> Option<String> {
+        let p = self.behaviour.prep(&self.data.params, shared);
+        let e = self.behaviour.exec(p.clone());
+        self.behaviour.post(shared, p, e)
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct NodeCore {
+    params: HashMap<String, Any>,
+    successors: HashMap<String, Node>,
+}
+
+pub trait NodeLogic: Send + Sync + 'static {
+    fn prep(&self, _params: &HashMap<String, Any>, _shared: &HashMap<String, Any>) -> Any {
+        Any::default()
+    }
+    fn exec(&self, _input: Any) -> Any {
+        Any::default()
+    }
+    fn post(
+        &self,
+        _shared: &mut HashMap<String, Any>,
+        _prep_res: Any,
+        _exec_res: Any,
+    ) -> Option<String> {
+        None
+    }
+
+    fn clone_box(&self) -> Box<dyn NodeLogic>;
+}
+
+impl Clone for Box<dyn NodeLogic> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+/// ------- BatchNode -------------------------------------------------------------
+/// This logic is fairly easy to implement since the core logic is really just about taking
+/// many items and applying the logic on all of them. But the more powerful approach here
+/// is just have BatchNode be generic over NodeLogic, this way it is composable with `Node`
+#[derive(Clone)]
+pub struct BatchLogic<L: NodeLogic> {
+    logic: Box<L>,
+}
+
+impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
+    fn prep(&self, params: &HashMap<String, Any>, shared: &HashMap<String, Any>) -> Any {
+        self.logic.prep(params, shared)
+    }
+
+    fn exec(&self, items: Any) -> Any {
+        // Check that input is indeed an array
+        if let Some(arr) = items.as_array() {
+            let results: Vec<Any> = arr.iter().map(|item| self.logic.exec(item.clone())).collect();
+
+            results.into()
+        } else {
+            log::error!("items is not an array");
+            Any::Null
+        }
+    }
+
+    fn post(
+        &self,
+        shared: &mut HashMap<String, Any>,
+        prep_res: Any,
+        exec_res: Any,
+    ) -> Option<String> {
+        self.logic.post(shared, prep_res, exec_res)
+    }
+
+    fn clone_box(&self) -> Box<dyn NodeLogic> {
+        Box::new((*self).clone())
+    }
+}
