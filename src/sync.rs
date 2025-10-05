@@ -82,7 +82,7 @@ impl Clone for Box<dyn NodeLogic> {
 /// is just have BatchNode be generic over NodeLogic, this way it is composable with `Node`
 #[derive(Clone)]
 pub struct BatchLogic<L: NodeLogic> {
-    logic: Box<L>,
+    logic: L,
 }
 
 impl<L: NodeLogic + Clone> NodeLogic for BatchLogic<L> {
