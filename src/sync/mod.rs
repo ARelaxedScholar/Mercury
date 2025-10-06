@@ -1,6 +1,7 @@
-pub mod node;
+pub mod batch_flow;
 pub mod batch_node;
 pub mod flow;
+pub mod node;
 
 /// The Alias for serde_json::Value since I use it a lot
 pub type NodeValue = serde_json::Value;
@@ -23,5 +24,3 @@ impl<T: 'static> AsAny for T {
         self
     }
 }
-
-

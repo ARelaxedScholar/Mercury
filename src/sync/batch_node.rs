@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::sync::NodeValue;
 use crate::sync::node::{Node, NodeLogic};
+use std::collections::HashMap;
 
 /// ------- BatchNode -------------------------------------------------------------
 /// This logic is fairly easy to implement since the core logic is really just about taking

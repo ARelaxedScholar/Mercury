@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::sync::NodeValue;
 use crate::sync::node::{Node, NodeLogic};
+use std::collections::HashMap;
 
 /// With our new composable approach we don't need the "awkward" workaround that Pocketflow
 /// has where they use an orch method instead of the exec method. A Flow is not "special"
