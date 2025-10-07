@@ -1,5 +1,5 @@
 use crate::sync::node::{Node, NodeLogic};
-use crate::sync::{NodeValue, flow::Flow};
+use crate::sync::NodeValue;
 use std::collections::HashMap;
 
 /// A BatchFlow is a `Node` (so orchestrable) which runs
@@ -7,7 +7,26 @@ use std::collections::HashMap;
 /// Therefore, a `BatchFlow` must deref the `Node`
 /// But it's actual exectution logic should be implemented
 /// on a struct which carries the `Flow` to batch.
+///
+/// Damn, I might be a prophet. But yup, after reconsideration
+/// everything up there holds true, except the `BatchFlowLogic` holds a `Node` (this was the most
+/// straightforward way I could think to enable BatchFlow nesting)
 pub struct BatchFlow(Node);
+
+/// The Derefs are needed to be able to access the inside `Node` of the `Flow` easily
+impl std::ops::Deref for BatchFlow {
+    type Target = Node;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BatchFlow {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[derive(Clone)]
 pub struct BatchFlowLogic<F>
@@ -18,7 +37,10 @@ where
         + Sync
         + 'static,
 {
-    flow: Flow,
+    // We have node so that we may nest BatchFlow'self
+    // Technically, you could BatchFlow a single node as well?
+    // But it's not as helpful
+    flow: Node,
     prep_fn: F,
 }
 
@@ -58,7 +80,7 @@ where
                 flow.run(&mut shared);
             });
 
-            NodeValue::Null
+            serde_json::to_value(shared).expect("Serialization of shared dictionary should work!")
         } else {
             panic!("Serialization failure occured");
         }
@@ -66,14 +88,22 @@ where
 
     fn post(
         &self,
-        _shared: &mut HashMap<String, NodeValue>,
+        shared: &mut HashMap<String, NodeValue>,
         _prep_res: NodeValue,
-        _exec_res: NodeValue,
+        exec_res: NodeValue,
     ) -> Option<String> {
+        if let Ok(shared_post) = serde_json::from_value(exec_res) {
+            *shared = shared_post
+        } else {
+            log::error!(
+                "A deserialization error occured in BatchFlow, will proceed with non-updated shared"
+            );
+        }
         // In PocketFlow they return the exec_res, but I think it's cleaner like this. If
         // you're not happy with this, you can also just implement your custom
         // BatchFlowLogic
-        None
+        // (This allows basic chaining)
+        Some("default".into())
     }
 
     fn clone_box(&self) -> Box<dyn NodeLogic> {
@@ -82,7 +112,7 @@ where
 }
 
 impl BatchFlow {
-    pub fn new<F>(flow: Flow, prep_fn: F) -> Self
+    pub fn new<F>(flow: Node, prep_fn: F) -> Self
     where
         F: Fn(&HashMap<String, NodeValue>, &HashMap<String, NodeValue>) -> NodeValue
             + Clone
