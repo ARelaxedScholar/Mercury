@@ -42,11 +42,21 @@ impl Node {
         let e = self.behaviour.exec(p.clone());
         self.behaviour.post(shared, p, e)
     }
+
+    pub fn run_with_params(
+        &self,
+        shared: &mut HashMap<String, NodeValue>,
+        param: &HashMap<String, NodeValue>,
+    ) -> Option<String> {
+        let p = self.behaviour.prep(param, shared);
+        let e = self.behaviour.exec(p.clone());
+        self.behaviour.post(shared, p, e)
+    }
 }
 
 #[derive(Default, Clone)]
 pub struct NodeCore {
-    params: HashMap<String, NodeValue>,
+    pub params: HashMap<String, NodeValue>,
     pub successors: HashMap<String, Node>,
 }
 

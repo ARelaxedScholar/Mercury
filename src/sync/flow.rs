@@ -58,6 +58,7 @@ impl NodeLogic for FlowLogic {
     ) -> NodeValue {
         serde_json::to_value((params, shared)).expect("If this works, I'll be so lit")
     }
+
     fn exec(&self, input: NodeValue) -> NodeValue {
         //  This is the init (Basically, we deserialize the value that was passed from the previous
         //  step)

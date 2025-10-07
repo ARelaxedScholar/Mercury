@@ -1,0 +1,44 @@
+use std::collections::HashMap;
+use crate::sync::node::{Node, NodeLogic};
+use crate::sync::{NodeValue, flow::Flow};
+
+/// A BatchFlow is a `Node` (so orchestrable) which runs
+/// a `Flow` many times with different params.
+/// Therefore, a `BatchFlow` must deref the `Node`
+/// But it's actual exectution logic should be implemented
+/// on a struct which carries the `Flow` to batch.
+pub struct BatchFlow(Node);
+
+pub struct BatchFlowLogic<F> where 
+F: Fn(&HashMap<String, NodeValue>, &HashMap<String, NodeValue> -> NodeValue
+{
+    flow: Flow,
+    prep_fn: 
+}
+
+impl BatchFlowLogic {
+    pub fn run_with(&self, params_list: [HashMap<String, NodeValue>], shared: &mut HashMap<String, NodeValue>) -> Option<String> {
+        params_list.iter().cloned().for_each(|params| {
+            let mut combined_params = self.flow.data.params.clone();
+            combined_params.extend(params);
+            self.flow.run_with_params(shared, &combined_params);
+        });
+        self.post(shared, params_list, None)
+    }
+}
+
+impl NodeLogic for BatchFlowLogic {
+   fn prep(
+           &self,
+           _params: &HashMap<String, NodeValue>,
+           _shared: &HashMap<String, NodeValue>,
+       ) -> NodeValue {
+       
+   } 
+}
+
+impl BatchFlow {
+    pub fn new(flow: Flow) -> Self {
+        BatchFlow(Node::new(BatchFlowLogic { flow }))
+    }
+}
