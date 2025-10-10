@@ -1,7 +1,9 @@
 [package]
-name = "mercury"
+name = "orichalcum"
 version = "0.1.0"
 edition = "2024"
+description = "My agent orchestration framework"
+license = "MIT"
 
 [dependencies]
 log = "0.4.28"
