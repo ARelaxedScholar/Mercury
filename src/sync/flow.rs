@@ -99,11 +99,8 @@ impl NodeLogic for FlowLogic {
         {
             if array.len() != 2 {
                 log::error!(
-                    "{}",
-                    format!(
-                        "Serialization into array succeeded, but got unexpected length for array: {}! Returning default values",
-                        array.len()
-                    )
+                    "Serialization into array succeeded, but got unexpected length for array: {}! Returning default values",
+                    array.len()
                 );
                 ("default".into(), shared.clone())
             } else {

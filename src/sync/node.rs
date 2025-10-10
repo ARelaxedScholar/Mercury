@@ -20,17 +20,15 @@ impl Node {
     pub fn set_params(&mut self, params: HashMap<String, NodeValue>) {
         self.data.params = params;
     }
-    fn next(self, node: Node) -> Self {
+    pub fn next(self, node: Node) -> Self {
         self.next_on(node, "default")
     }
-    fn next_on(mut self, node: Node, action: &str) -> Self {
+    pub fn next_on(mut self, node: Node, action: &str) -> Self {
         if self.data.successors.contains_key(action) {
             log::warn!(
-                "{}",
-                format!(
-                    "Warning: Action {} was found in successors, Overwriting key {}.",
-                    &action, &action
-                )
+                "Warning: Action {} was found in successors, Overwriting key {}.",
+                &action,
+                &action
             );
         }
         self.data.successors.insert(action.to_string(), node);

@@ -17,7 +17,7 @@ pub struct BatchLogic<L: NodeLogic> {
 /// `BatchNode` which we define through the composition of a `Node` with a `NodeLogic` which is
 /// `Clone`-able, is simply a `Node` which applies its logic to a bunch of items (sequentially.)
 impl<L: NodeLogic> BatchLogic<L> {
-    fn new(logic: L) -> Self {
+    pub fn new(logic: L) -> Self {
         BatchLogic { logic }
     }
 }
