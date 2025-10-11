@@ -1,4 +1,4 @@
-# Mercury: A PocketFlow Clone in Rust
+# Orichalcum: A PocketFlow Clone in Rust
 
 **License**: MIT | **Docs**
 
@@ -9,7 +9,7 @@ You looked at PocketFlow and thought, "100 lines? That's cute. But is it *memory
 
 You crave the sweet agony of the borrow checker. You yearn for the moral superiority that comes with writing everything in Rust. You, my friend, are a true masochist. And this is the LLM framework for you.
 
-Mercury is a line-by-line, crate-by-painstaking-crate translation of PocketFlow into the best programming language, Rust.
+Orichalcum is a spiritual son to PocketFlow, inheriting (ironically) the philosophy of PocketFlow, while changing a few things here and there. 
 
 
 ### Features:
@@ -19,34 +19,16 @@ Mercury is a line-by-line, crate-by-painstaking-crate translation of PocketFlow 
 *   **100 Lines?** When you think about it, what is a 100? And what is a line... No.
 *   **Agentic Coding?** Let the compiler be your agent. It will tell you all the ways you've failed.
 
-### Get Started (If You Dare)
-
-To install, simply clone the repo and prepare for a fight with the borrow checker.
-
-```bash
-git clone https://github.com/your-username/mercury.git
-cd mercury
-cargo run --example chat
+### Get Started
+```Rust
+use orichalcum::sync::{Node, Flow, ...}
 ```
 
-### Why Mercury?
+### Why Orichalcum?
+I don't know. It sounded like a cool project?
+I'll use it for agentic development down the line and I thought writing my own tools would be cool.
 
-Look, we all know the real reason you're here. You saw a perfectly good, simple framework in Python and thought, "I could make this more difficult for myself." You're the kind of person who hears "rewrite it in Rust" and gets a little tingle down your spine. This is your calling.
+### How does Orichalcum work?
+It as the same philosophy as PocketFlow (or at least my understanding of it), 
+with a hard focus on composition rather than inheritance. 
 
-| Abstraction | App-Specific Wrappers | Vendor-Specific Wrappers | Lines | Size | Why You Suffer |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **LangChain** | Many | Many | 405K | +166MB | Because you like bloat. |
-| **CrewAI** | Many | Many | 18K | +173MB | You enjoy the company of others. |
-| **Mercury** | None | None | 100ish | `target/` is 3GB | **Because pain is a feature.** |
-
-### How does Mercury work?
-
-It works through the sheer force of will and the guiding hand of the Rust compiler. You will learn about ownership, borrowing, and why your strings have mysteriously disappeared.
-
----
-
-**"But the Reddit thread said it would be memory-safe."**
-
-Yes. And it is. Now go fight the compiler for six months.
-
-**Want to learn Agentic Coding?** Ask `rustc`. It has opinions.
