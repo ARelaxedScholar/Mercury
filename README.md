@@ -2,6 +2,10 @@
 
 **License**: MIT | **Docs**
 
+## Status
+
+⚠️ This library is in early development (0.x). The API may change.
+
 ## Why? Because I could. And because Python is for the weak 
 #### (Jk, I love you Python, <3).
 
