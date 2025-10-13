@@ -7,4 +7,4 @@ pub mod llm;
 
 // Re-export commonly used types for convenience
 #[cfg(feature = "llm")]
-pub use llm::{Client, LLMError};
+pub use llm::{Client, error::LLMError};
