@@ -32,7 +32,7 @@ where
         stream: bool,
     ) -> Result<OllamaResponse, LLMError> {
         // Extract the config
-        let ollama_config: &Ollama = self
+        let ollama_host: &str = self
             .ollama_host
             .as_ref()
             .expect("Client<S> should have Some<Ollama> when HasProvider<Ollama> is true");
@@ -47,7 +47,7 @@ where
         // Create the response
         let response = self
             .client
-            .post(format!("{}/api/generate", ollama_config.host))
+            .post(format!("{}/api/generate", ollama_host))
             .json(&payload)
             .send()
             .await?

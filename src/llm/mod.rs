@@ -46,7 +46,7 @@ impl Default for Client<Providers<Disabled>> {
 /// Builder functions to bind a given config to the client
 /// These functions are only available when the thing hasn't been bound yet
 impl Client<Providers<Disabled>> {
-    pub fn with_ollama(self, host: &str) -> Client<Providers<Enabled>> {
+    pub fn with_ollama(self, host: impl Into<String>) -> Client<Providers<Enabled>> {
         Client {
             client: self.client,
             state: PhantomData,
