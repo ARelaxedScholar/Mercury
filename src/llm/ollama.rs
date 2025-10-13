@@ -3,9 +3,7 @@ use serde_json::json;
 
 use crate::llm::{Client, HasProvider, error::LLMError};
 
-pub struct Ollama {
-    pub host: String,
-}
+pub struct Ollama;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct OllamaResponse {
@@ -35,7 +33,7 @@ where
     ) -> Result<OllamaResponse, LLMError> {
         // Extract the config
         let ollama_config: &Ollama = self
-            .ollama_config
+            .ollama_host
             .as_ref()
             .expect("Client<S> should have Some<Ollama> when HasProvider<Ollama> is true");
 

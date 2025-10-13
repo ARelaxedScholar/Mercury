@@ -14,7 +14,7 @@ pub struct Client<S> {
     /// A marker for the current state of the Client (which methods it has a config bound with)
     state: PhantomData<S>,
     /// Ollama config
-    ollama_config: Option<Ollama>,
+    ollama_config: Option<String>,
 }
 
 /// Type States
@@ -32,7 +32,7 @@ impl Client<Providers<Disabled>> {
         Client {
             client: reqwest::Client::new(),
             state: PhantomData,
-            ollama_config: None,
+            ollama_host: None,
         }
     }
 }
@@ -46,11 +46,11 @@ impl Default for Client<Providers<Disabled>> {
 /// Builder functions to bind a given config to the client
 /// These functions are only available when the thing hasn't been bound yet
 impl Client<Providers<Disabled>> {
-    pub fn with_ollama(self, config: Ollama) -> Client<Providers<Enabled>> {
+    pub fn with_ollama(self, host: &str) -> Client<Providers<Enabled>> {
         Client {
             client: self.client,
             state: PhantomData,
-            ollama_config: Some(config),
+            ollama_host: Some(host.into()),
         }
     }
 }
