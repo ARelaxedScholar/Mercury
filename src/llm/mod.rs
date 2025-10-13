@@ -14,7 +14,7 @@ pub struct Client<S> {
     /// A marker for the current state of the Client (which methods it has a config bound with)
     state: PhantomData<S>,
     /// Ollama config
-    ollama_config: Option<String>,
+    ollama_host: Option<String>,
 }
 
 /// Type States
