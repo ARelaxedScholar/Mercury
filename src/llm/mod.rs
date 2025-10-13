@@ -59,7 +59,7 @@ impl Client<Providers<Disabled>> {
 pub trait HasProvider<Provider> {}
 
 /// Implementation of what it means for this to be true for Ollama
-impl HasProvider<Ollama> for Client<Providers<Enabled>> {}
+impl HasProvider<Ollama> for Providers<Enabled> {}
 
 /// LLM Client is fundamentally a reqwest::Client, but bound if user
 /// wants to query some page using the client directly, I think they should be able to.
