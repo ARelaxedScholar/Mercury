@@ -27,8 +27,8 @@ where
 {
     pub async fn call_ollama(
         &self,
-        model: &str,
-        prompt: &str,
+        model: impl Into<String>,
+        prompt: impl Into<String>,
         stream: bool,
     ) -> Result<OllamaResponse, LLMError> {
         // Extract the config
@@ -39,8 +39,8 @@ where
 
         // Create the payload for querying Ollama
         let payload = json!({
-            "model": model,
-            "prompt": prompt,
+            "model": model.into(),
+            "prompt": prompt.into(),
             "stream": stream
         });
 

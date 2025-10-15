@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 /// LLM client (wrapper around reqwest::Client)
 /// which is bound to specific providers (can be many)
 /// to get a generation from the provider
+#[derive(Clone)]
 pub struct Client<S> {
     /// reqwest::Client, does the querying
     client: reqwest::Client,
@@ -43,8 +44,8 @@ impl Default for Client<Providers<Disabled>> {
     }
 }
 
-/// Builder functions to bind a given config to the client
-/// These functions are only available when the thing hasn't been bound yet
+/// Builder functions to bind a given config to the client. 
+/// These functions are only available when the client hasn't been bound to a respective client.
 impl Client<Providers<Disabled>> {
     pub fn with_ollama(self, host: impl Into<String>) -> Client<Providers<Enabled>> {
         Client {
@@ -53,6 +54,18 @@ impl Client<Providers<Disabled>> {
             ollama_host: Some(host.into()),
         }
     }
+}
+
+
+/// This is an edit function if you figure out you want to change the config
+impl Client<Providers<Enabled>> {
+    pub fn edit_ollama_host(&mut self, host: impl Into<String>){ 
+        let new_host = host.into();
+        assert!(!new_host.is_empty(), "`edit_ollama_host` expects a non-empty string.");
+
+        // Set the thing 
+        self.ollama_host = Some(host.into());
+    } 
 }
 
 /// HasProvider trait to block functions behind having specific providers
