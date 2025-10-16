@@ -61,9 +61,9 @@ impl AsyncNode {
         shared: &mut HashMap<String, NodeValue>,
         param: &HashMap<String, NodeValue>,
     ) -> Option<String> {
-        let p = self.behaviour.prep_async(param, shared).await;
-        let e = self.behaviour.exec_async(p.clone()).await;
-        self.behaviour.post_async(shared, p, e).await
+        let p = self.behaviour.prep(param, shared).await;
+        let e = self.behaviour.exec(p.clone()).await;
+        self.behaviour.post(shared, p, e).await
     }
 }
 
