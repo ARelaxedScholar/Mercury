@@ -1,6 +1,7 @@
 use crate::sync::AsAny;
 use crate::sync::NodeValue;
 use std::collections::HashMap;
+use crate::core::Executable;
 
 /// ------ Base Node Logic -------------------------------------------------------
 /// Defines the fundamental logic that is common to any "Node" of the system
@@ -20,10 +21,10 @@ impl Node {
     pub fn set_params(&mut self, params: HashMap<String, NodeValue>) {
         self.data.params = params;
     }
-    pub fn next(self, node: Node) -> Self {
+    pub fn next(self, node: Executable) -> Self {
         self.next_on(node, "default")
     }
-    pub fn next_on(mut self, node: Node, action: &str) -> Self {
+    pub fn next_on(mut self, node: Executable, action: &str) -> Self {
         if self.data.successors.contains_key(action) {
             log::warn!(
                 "Warning: Action {} was found in successors, Overwriting key {}.",
@@ -55,7 +56,7 @@ impl Node {
 #[derive(Default, Clone)]
 pub struct NodeCore {
     pub params: HashMap<String, NodeValue>,
-    pub successors: HashMap<String, Node>,
+    pub successors: HashMap<String, Executable>,
 }
 
 pub trait NodeLogic: AsAny + Send + Sync + 'static {

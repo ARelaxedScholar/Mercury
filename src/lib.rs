@@ -1,5 +1,5 @@
-// The main modules (async will be added soon)
-pub mod sync;
+// The main modules 
+mod core;
 
 // LLM feature
 #[cfg(feature = "llm")]
