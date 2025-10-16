@@ -7,7 +7,6 @@ use crate::sync_impl::node::NodeCore;
 
 use async_trait::async_trait;
 
-
 /// Async Node
 pub struct AsyncNode {
     pub data: NodeCore,

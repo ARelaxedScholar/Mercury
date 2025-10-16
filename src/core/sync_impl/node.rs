@@ -1,7 +1,7 @@
+use crate::core::Executable;
 use crate::sync::AsAny;
 use crate::sync::NodeValue;
 use std::collections::HashMap;
-use crate::core::Executable;
 
 /// ------ Base Node Logic -------------------------------------------------------
 /// Defines the fundamental logic that is common to any "Node" of the system

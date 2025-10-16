@@ -1,11 +1,9 @@
+use crate::core::Executable;
 use crate::sync::NodeValue;
 use crate::sync::node::{Node, NodeLogic};
 use std::collections::HashMap;
 
-/// With our new composable approach we don't need the "awkward" workaround that Pocketflow
-/// has where they use an orch method instead of the exec method. A Flow is not "special"
-/// it's just a Node who's logic encapsulates other Nodes, changing the `exec` method
-/// to encapsulate that is possible but awkward. Instead, we can simply define aliases
+/// The logic that is specif
 #[derive(Clone)]
 pub struct FlowLogic {
     start: Node,
@@ -83,7 +81,19 @@ impl NodeLogic for FlowLogic {
         while let Some(mut curr) = current {
             curr.set_params(params.clone());
             last_action = curr.run(&mut shared).unwrap_or("default".into());
-            current = curr.data.successors.get(&last_action).cloned();
+            let next_executable = curr.data.successors.get(&last_action).cloned();
+
+            match next_executable {
+                Some(Executable::Sync(sync_node)) => current = Some(sync_node),
+                Some(Executable::Async(_)) => {
+                    panic!(
+                        "Flow cannot handle AsyncNode, if you require to use regular Nodes with AsyncNodes, please use AsyncNode."
+                    );
+                }
+                None => {
+                    current = None;
+                }
+            }
         }
         serde_json::to_value((last_action.to_string(), shared))
             .expect("Serializing string and HashMap should be doable")
