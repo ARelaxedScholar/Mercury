@@ -1,5 +1,6 @@
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
+use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -25,9 +26,8 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
     async fn exec(&self, items: NodeValue) -> NodeValue {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let results: Vec<NodeValue> = arr
-                .iter()
-                .map(|item| self.logic.exec(item.clone()))
+            let results: Vec<NodeValue> = stream::iter(arr)
+                .then(|item| self.logic.exec(item.clone()))
                 .collect()
                 .await;
 
