@@ -1,19 +1,38 @@
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
+use futures::FutureExt;
+use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 
+const DEFAULT_MAX_CONCURRENCY: usize = 50;
+
 #[derive(Clone)]
-pub struct AsyncBatchLogic<L: AsyncNodeLogic> {
+pub struct AsyncParallelBatchLogic<L: AsyncNodeLogic> {
     logic: L,
+    max_concurrency: usize,
 }
 
-impl<L: AsyncNodeLogic> AsyncBatchLogic<L> {
+impl<L: AsyncNodeLogic> AsyncParallelBatchLogic<L> {
     pub fn new(logic: L) -> Self {
-        AsyncBatchLogic { logic }
+        AsyncParallelBatchLogic {
+            logic,
+            max_concurrency: DEFAULT_MAX_CONCURRENCY,
+        }
+    }
+
+    pub fn with_concurrency(self, max_concurrency: usize) -> Self {
+        assert!(
+            max_concurrency > 0,
+            "Max concurrency must be greater than 0"
+        );
+        AsyncParallelBatchLogic {
+            logic: self.logic,
+            max_concurrency,
+        }
     }
 }
 
-impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
+impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncParallelBatchLogic<L> {
     async fn prep(
         &self,
         params: &HashMap<String, NodeValue>,
@@ -25,10 +44,10 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
     async fn exec(&self, items: NodeValue) -> NodeValue {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let results: Vec<NodeValue> = arr
-                .iter()
-                .map(|item| self.logic.exec(item.clone()))
-                .collect()
+            let results: Vec<NodeValue> = stream::iter(arr)
+                .map(|item| self.logic.exec(item))
+                .buffer_unordered(self.max_concurrency)
+                .collect::<Vec<NodeValue>>()
                 .await;
 
             results.into()
@@ -53,6 +72,8 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
 }
 
 /// The `AsyncBatchNode` factory
-pub fn new_async_batch_node<L: AsyncNodeLogic + Clone>(logic: L) -> AsyncNode {
-    AsyncNode::new(AsyncBatchLogic { logic })
+pub fn new_async_parallel_batch_node<L: AsyncNodeLogic + Clone>(
+    logic: AsyncParallelBatchLogic<L>,
+) -> AsyncNode {
+    AsyncNode::new(logic)
 }

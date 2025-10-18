@@ -17,7 +17,7 @@ pub struct AsyncNode {
 impl Clone for AsyncNode {
     fn clone(&self) -> Self {
         Self {
-            data: self.data.clone(), 
+            data: self.data.clone(),
             behaviour: self.behaviour.clone_box(),
         }
     }
@@ -48,7 +48,6 @@ impl AsyncNode {
         self.data.successors.insert(action.to_string(), node);
         self
     }
-
 
     pub async fn run(&self, shared: &mut HashMap<String, NodeValue>) -> Option<String> {
         let p = self.behaviour.prep(&self.data.params, shared).await;
