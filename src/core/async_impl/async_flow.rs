@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
 use crate::core::sync_impl::node::{Node, NodeLogic};
@@ -49,6 +50,7 @@ impl AsyncFlow {
     }
 }
 
+#[async_trait]
 impl AsyncNodeLogic for AsyncFlowLogic {
     async fn prep(
         &self,
