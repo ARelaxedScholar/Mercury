@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use crate::core::Executable;
-use crate::sync::node::Node;
-use crate::sync_impl::AsAny;
-use crate::sync_impl::NodeValue;
-use crate::sync_impl::node::NodeCore;
+use crate::core::sync_impl::AsAny;
+use crate::core::sync_impl::NodeValue;
+use crate::core::sync_impl::node::NodeCore;
 
 use async_trait::async_trait;
 

@@ -1,5 +1,6 @@
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
+use async_trait::async_trait;
 use futures::stream::{self, StreamExt};
 use std::collections::HashMap;
 
@@ -14,6 +15,7 @@ impl<L: AsyncNodeLogic> AsyncBatchLogic<L> {
     }
 }
 
+#[async_trait]
 impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
     async fn prep(
         &self,

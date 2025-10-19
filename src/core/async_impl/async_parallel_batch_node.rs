@@ -1,7 +1,7 @@
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
-use futures::FutureExt;
-use futures::stream::{self, StreamExt};
+use async_trait::async_trait;
+use futures::stream::{FuturesOrdered, StreamExt};
 use std::collections::HashMap;
 
 const DEFAULT_MAX_CONCURRENCY: usize = 50;
@@ -32,6 +32,7 @@ impl<L: AsyncNodeLogic> AsyncParallelBatchLogic<L> {
     }
 }
 
+#[async_trait]
 impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncParallelBatchLogic<L> {
     async fn prep(
         &self,
@@ -44,12 +45,14 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncParallelBatchLogic<L> {
     async fn exec(&self, items: NodeValue) -> NodeValue {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let results: Vec<NodeValue> = stream::iter(arr)
-                .map(|item| self.logic.exec(item))
-                .buffer_unordered(self.max_concurrency)
-                .collect::<Vec<NodeValue>>()
-                .await;
+            let mut results: Vec<NodeValue> = Vec::new();
 
+            let futures = arr.into_iter().map(|item| self.logic.exec(item.clone()));
+            let mut futures_ordered : FuturesOrdered<_>= futures.collect();
+
+            while let Some(result) = futures_ordered.next().await {
+                results.push(result);
+            }
             results.into()
         } else {
             log::error!("items is not an array");

@@ -1,6 +1,6 @@
 use crate::core::Executable;
-use crate::sync::AsAny;
-use crate::sync::NodeValue;
+use crate::core::sync_impl::AsAny;
+use crate::core::sync_impl::NodeValue;
 use std::collections::HashMap;
 
 /// ------ Base Node Logic -------------------------------------------------------

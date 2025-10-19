@@ -1,8 +1,7 @@
-use async_trait::async_trait;
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
-use crate::core::sync_impl::node::{Node, NodeLogic};
 use crate::core::{Executable, Executable::Async, Executable::Sync};
+use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// The logic that is specif
@@ -77,14 +76,15 @@ impl AsyncNodeLogic for AsyncFlowLogic {
             } else {
                 (HashMap::new(), HashMap::new())
             };
-        let mut current: Option<Node> = Some(self.start.clone());
+        let mut current: Option<Executable> = Some(self.start.clone());
         let mut last_action: String = "".into();
 
         // This is the orchestration logic
         while let Some(mut curr) = current {
             last_action = match curr {
-                Sync(sync_node) => {
-                    sync_node.set_params(params.clone());
+                Sync(ref mut sync_node) => {
+                    let mut sync_clone = sync_node.clone();
+                    sync_clone.set_params(params.clone());
                     let mut shared_clone = shared.clone();
 
                     // not ideal, but not cloning here would
@@ -94,25 +94,25 @@ impl AsyncNodeLogic for AsyncFlowLogic {
                     // Will be next step if benchmarking shows me this is actually
                     // worth the hassle
                     match tokio::task::spawn_blocking(move || {
-                        let action = sync_node.run(&mut shared_clone).unwrap_or("default".into());
+                        let action = sync_clone.run(&mut shared_clone).unwrap_or("default".into());
                         (action, shared_clone)
                     })
                     .await
                     {
                         Ok((next_action, modified_shared)) => {
                             // Happy path: the task completed successfully
-                            *shared = modified_shared;
-                            next_action;
+                            shared = modified_shared;
+                            next_action
                         }
                         Err(join_error) => {
                             // The background task panicked!
                             log::error!("A synchronous node panicked: {:?}", join_error);
                             // For now, just log it and go to the default action
-                            "default".into();
+                            "default".into()
                         }
                     }
                 }
-                Async(async_node) => {
+                Async(ref mut async_node) => {
                     async_node.set_params(params.clone());
                     async_node
                         .run(&mut shared)
@@ -122,14 +122,9 @@ impl AsyncNodeLogic for AsyncFlowLogic {
             };
 
             // Uses method implemented on Executable
-            let next_executable = curr.successors().get(&last_action).cloned();
+            let next_executable = &curr.successors().get(&last_action).cloned();
 
-            match next_executable {
-                Some(executable) => current = Some(executable),
-                None => {
-                    current = None;
-                }
-            }
+            current = next_executable.clone();
         }
         serde_json::to_value((last_action.to_string(), shared))
             .expect("Serializing string and HashMap should be doable")
@@ -166,7 +161,7 @@ impl AsyncNodeLogic for AsyncFlowLogic {
         // return the final action (since Flow is also just a node)
         Some(last_action)
     }
-    fn clone_box(&self) -> Box<dyn NodeLogic> {
+    fn clone_box(&self) -> Box<dyn AsyncNodeLogic> {
         Box::new((*self).clone())
     }
 }

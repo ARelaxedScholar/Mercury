@@ -1,5 +1,5 @@
-use crate::sync::NodeValue;
-use crate::sync::node::{Node, NodeLogic};
+use crate::core::sync_impl::NodeValue;
+use crate::core::sync_impl::node::{Node, NodeLogic};
 use std::collections::HashMap;
 
 /// A BatchFlow is a `Node` (so orchestrable) which runs
