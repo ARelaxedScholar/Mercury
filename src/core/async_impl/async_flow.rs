@@ -49,7 +49,7 @@ impl AsyncFlow {
     }
 }
 
-impl NodeLogic for FlowLogic {
+impl AsyncNodeLogic for AsyncFlowLogic {
     async fn prep(
         &self,
         params: &HashMap<String, NodeValue>,
@@ -83,7 +83,32 @@ impl NodeLogic for FlowLogic {
             last_action = match curr {
                 Sync(sync_node) => {
                     sync_node.set_params(params.clone());
-                    sync_node.run(&mut shared).unwrap_or("default".into())
+                    let mut shared_clone = shared.clone();
+
+                    // not ideal, but not cloning here would
+                    // require a significant refactoring
+                    // afaik (switching everything to use
+                    // Arc/Rc)
+                    // Will be next step if benchmarking shows me this is actually
+                    // worth the hassle
+                    match tokio::task::spawn_blocking(move || {
+                        let action = sync_node.run(&mut shared_clone).unwrap_or("default".into());
+                        (action, shared_clone)
+                    })
+                    .await
+                    {
+                        Ok((next_action, modified_shared)) => {
+                            // Happy path: the task completed successfully
+                            *shared = modified_shared;
+                            next_action;
+                        }
+                        Err(join_error) => {
+                            // The background task panicked!
+                            log::error!("A synchronous node panicked: {:?}", join_error);
+                            // For now, just log it and go to the default action
+                            "default".into();
+                        }
+                    }
                 }
                 Async(async_node) => {
                     async_node.set_params(params.clone());
@@ -93,10 +118,12 @@ impl NodeLogic for FlowLogic {
                         .unwrap_or("default".into())
                 }
             };
-            let next_executable = curr.data.successors.get(&last_action).cloned();
+
+            // Uses method implemented on Executable
+            let next_executable = curr.successors().get(&last_action).cloned();
 
             match next_executable {
-                Some(Sync(node) | Async(node)) => current = Some(node),
+                Some(executable) => current = Some(executable),
                 None => {
                     current = None;
                 }
