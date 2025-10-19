@@ -47,7 +47,7 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncParallelBatchLogic<L> {
         if let Some(arr) = items.as_array() {
             let mut results: Vec<NodeValue> = Vec::new();
 
-            let futures = arr.into_iter().map(|item| self.logic.exec(item.clone()));
+            let futures = arr.iter().map(|item| self.logic.exec(item.clone()));
             let mut futures_ordered : FuturesOrdered<_>= futures.collect();
 
             while let Some(result) = futures_ordered.next().await {
