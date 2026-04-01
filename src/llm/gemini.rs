@@ -261,7 +261,7 @@ where
         let model_to_use = self.model.unwrap_or_else(|| config.default_model.clone());
 
         // Implicit validation
-        let mut cache = self.client.model_cache.gemini.read().unwrap().clone();
+        let mut cache = self.client.model_cache.gemini.read().unwrap_or_else(|e| e.into_inner()).clone();
         if cache.is_none() {
             if let Ok(models) = self.client.gemini_list_models().await {
                 let names: Vec<String> = models
@@ -273,7 +273,7 @@ where
                             .to_string()
                     })
                     .collect();
-                *self.client.model_cache.gemini.write().unwrap() = Some(names.clone());
+                *self.client.model_cache.gemini.write().unwrap_or_else(|e| e.into_inner()) = Some(names.clone());
                 cache = Some(names);
             }
         }
