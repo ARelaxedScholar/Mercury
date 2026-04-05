@@ -1,6 +1,6 @@
 use orichalcum::prelude::*;
 use orichalcum::Signature;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use serde_json::json;
 
@@ -81,7 +81,7 @@ fn test_flow_validation_success() {
     let flow = Flow::new(start_node);
     
     // Validate with initial keys
-    let result = flow.validate(vec!["input1".to_string()]);
+    let result = flow.validate(HashSet::from_iter(vec!["input1".to_string()]));
     assert!(result.is_safe());
 }
 
@@ -96,7 +96,7 @@ fn test_flow_validation_failure() {
     let flow = Flow::new(node1);
     
     // Validate without required initial keys
-    let result = flow.validate(vec![]);
+    let result = flow.validate(HashSet::new());
     assert!(!result.is_safe());
     
     match &result.issues[0] {

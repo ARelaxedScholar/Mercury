@@ -79,10 +79,10 @@ impl Flow {
     }
 
     /// Validates the data flow integrity of the entire workflow.
-    pub fn validate(&self, initial_keys: Vec<String>) -> ValidationResult {
+    pub fn validate(&self, initial_keys: HashSet<String>) -> ValidationResult {
         let mut result = ValidationResult::new();
         let mut visited = HashSet::new();
-        let mut available_keys = initial_keys.into_iter().collect::<HashSet<_>>();
+        let mut available_keys = initial_keys;
 
         let behaviour: &dyn NodeLogic = &*self.behaviour;
         if let Some(flow_logic) = behaviour.as_any().downcast_ref::<FlowLogic>() {
