@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "ea23e6911b0deb9b7f563a9102fb2b7e114d636b32205a702b4e869a63d64487";
+  nixifiedLockHash = "01a5d85616ee58a8d897dfaf6949c82938ca87443286fe3dff39c1019a4389e8";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1590,11 +1590,11 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"; };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".lz4_flex."0.11.5" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".lz4_flex."0.11.6" = overridableMkRustCrate (profileName: rec {
     name = "lz4_flex";
-    version = "0.11.5";
+    version = "0.11.6";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "08ab2867e3eeeca90e844d1940eab391c9dc5228783db2ed999acbc0a9ed375a"; };
+    src = fetchCratesIo { inherit name version; sha256 = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"; };
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "orichalcum/telemetry") "frame")
       (lib.optional (rootFeatures' ? "orichalcum/telemetry") "std")
@@ -1886,7 +1886,7 @@ in
       log = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.28" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "parquet" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".parquet."52.2.0" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/llm" then "reqwest" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".reqwest."0.12.24" { inherit profileName; }).out;
-      ${ if rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry" then "serde" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.228" { inherit profileName; }).out;
+      serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.228" { inherit profileName; }).out;
       serde_json = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.145" { inherit profileName; }).out;
       thiserror = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."2.0.17" { inherit profileName; }).out;
       tokio = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.48.0" { inherit profileName; }).out;
@@ -1934,7 +1934,7 @@ in
       ${ if rootFeatures' ? "orichalcum/telemetry" then "flate2" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".flate2."1.1.9" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "half" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".half."2.7.1" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "hashbrown" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hashbrown."0.14.5" { inherit profileName; }).out;
-      ${ if rootFeatures' ? "orichalcum/telemetry" then "lz4_flex" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".lz4_flex."0.11.5" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "orichalcum/telemetry" then "lz4_flex" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".lz4_flex."0.11.6" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "num" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".num."0.4.3" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "num_bigint" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".num-bigint."0.4.6" { inherit profileName; }).out;
       ${ if rootFeatures' ? "orichalcum/telemetry" then "paste" else null } = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".paste."1.0.15" { profileName = "__noProfile"; }).out;
@@ -2358,14 +2358,14 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"; };
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "orichalcum/llm") "alloc")
-      (lib.optional (rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry") "default")
-      (lib.optional (rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry") "derive")
-      (lib.optional (rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry") "serde_derive")
-      (lib.optional (rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry") "std")
+      [ "default" ]
+      [ "derive" ]
+      [ "serde_derive" ]
+      [ "std" ]
     ];
     dependencies = {
       serde_core = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_core."1.0.228" { inherit profileName; }).out;
-      ${ if rootFeatures' ? "orichalcum/llm" || rootFeatures' ? "orichalcum/telemetry" then "serde_derive" else null } = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_derive."1.0.228" { profileName = "__noProfile"; }).out;
+      serde_derive = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_derive."1.0.228" { profileName = "__noProfile"; }).out;
     };
   });
   
