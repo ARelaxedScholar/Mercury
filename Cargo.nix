@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "01a5d85616ee58a8d897dfaf6949c82938ca87443286fe3dff39c1019a4389e8";
+  nixifiedLockHash = "3bd81de724a5b155e9f8eff8cc5709d858741f84d75196123bbd72bafa7dc3d9";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -53,7 +53,7 @@ in
 {
   cargo2nixVersion = "0.12.0";
   workspace = {
-    orichalcum = rustPackages.unknown.orichalcum."0.4.0";
+    orichalcum = rustPackages.unknown.orichalcum."0.4.1";
   };
   "registry+https://github.com/rust-lang/crates.io-index".adler2."2.0.1" = overridableMkRustCrate (profileName: rec {
     name = "adler2";
@@ -1867,9 +1867,9 @@ in
     };
   });
   
-  "unknown".orichalcum."0.4.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".orichalcum."0.4.1" = overridableMkRustCrate (profileName: rec {
     name = "orichalcum";
-    version = "0.4.0";
+    version = "0.4.1";
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
