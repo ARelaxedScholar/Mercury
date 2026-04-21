@@ -1,5 +1,5 @@
-use crate::core::sync_impl::node::{Node, NodeLogic};
 use crate::core::sync_impl::NodeValue;
+use crate::core::sync_impl::node::{Node, NodeLogic};
 use std::collections::HashMap;
 
 /// ------- BatchNode -------------------------------------------------------------
@@ -70,8 +70,8 @@ pub fn new_batch_node<L: NodeLogic + Clone>(logic: L) -> Node {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::sync_impl::flow::Flow;
     use crate::core::Executable;
+    use crate::core::sync_impl::flow::Flow;
     use serde_json::json;
     use std::collections::HashMap;
 
@@ -198,8 +198,8 @@ mod tests {
         let post_result = batch_logic.post(&mut shared_mut, prep_result, exec_result);
         assert_eq!(post_result, Some("default".to_string()));
         assert_eq!(shared_mut.get("post_called"), Some(&json!(true)));
-        assert!(shared_mut.get("prep_res").is_some());
-        assert!(shared_mut.get("exec_res").is_some());
+        assert!(shared_mut.contains_key("prep_res"));
+        assert!(shared_mut.contains_key("exec_res"));
     }
 
     #[test]

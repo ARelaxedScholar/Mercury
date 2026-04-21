@@ -1,8 +1,8 @@
-use crate::core::sync_impl::node::{Node, NodeLogic};
+use crate::core::Executable;
 use crate::core::sync_impl::NodeValue;
+use crate::core::sync_impl::node::{Node, NodeLogic};
 use crate::core::telemetry::Telemetry;
 use crate::core::validation::ValidationResult;
-use crate::core::Executable;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -86,7 +86,7 @@ impl Flow {
 
         let behaviour: &dyn NodeLogic = &*self.behaviour;
         if let Some(flow_logic) = behaviour.as_any().downcast_ref::<FlowLogic>() {
-            self.validate_recursive(
+            Self::validate_recursive(
                 &Executable::Sync(flow_logic.start.clone()),
                 &mut available_keys,
                 &mut visited,
@@ -98,7 +98,6 @@ impl Flow {
     }
 
     fn validate_recursive(
-        &self,
         current: &Executable,
         available_keys: &mut HashSet<String>,
         visited: &mut HashSet<String>,
@@ -137,7 +136,7 @@ impl Flow {
 
         for successor in current.successors().values() {
             let mut branch_keys = available_keys.clone();
-            self.validate_recursive(successor, &mut branch_keys, visited, result);
+            Self::validate_recursive(successor, &mut branch_keys, visited, result);
         }
     }
 }
@@ -192,7 +191,9 @@ impl NodeLogic for FlowLogic {
                     // But our SealedNode::run is async.
 
                     // Let's implement a block_on or restrict Sealed nodes in Sync flow for now.
-                    log::error!("Sync Flow encountered a SealedNode. Handling of SealedNodes in Sync Flows is currently restricted.");
+                    log::error!(
+                        "Sync Flow encountered a SealedNode. Handling of SealedNodes in Sync Flows is currently restricted."
+                    );
                     current = None;
                 }
                 None => {

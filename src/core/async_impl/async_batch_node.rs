@@ -29,7 +29,7 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncBatchLogic<L> {
     async fn exec(&self, items: NodeValue) -> NodeValue {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let owned_items: Vec<NodeValue> = arr.iter().cloned().collect();
+            let owned_items: Vec<NodeValue> = arr.to_vec();
             let logic = Arc::new(self.logic.clone());
             let results: Vec<NodeValue> = stream::iter(owned_items)
                 .then(move |item| {
@@ -190,8 +190,8 @@ mod tests {
             .await;
         assert_eq!(post_result, Some("default".to_string()));
         assert_eq!(shared_mut.get("post_called"), Some(&json!(true)));
-        assert!(shared_mut.get("prep_res").is_some());
-        assert!(shared_mut.get("exec_res").is_some());
+        assert!(shared_mut.contains_key("prep_res"));
+        assert!(shared_mut.contains_key("exec_res"));
     }
 
     #[tokio::test]

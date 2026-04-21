@@ -1,3 +1,4 @@
+#[cfg(feature = "llm")]
 pub mod node;
 pub mod registry;
 pub mod signature;

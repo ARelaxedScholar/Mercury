@@ -1,16 +1,16 @@
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::llm::Client;
 use crate::LLMError;
-use crate::core::async_impl::async_node::{AsyncNodeLogic, AsyncNode};
-use crate::core::sync_impl::NodeValue;
-use crate::core::semantic::{Sealable, Promptable};
 use crate::core::Executable;
+use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sealed::SealedNode;
 use crate::core::semantic::signature::Signature;
+use crate::core::semantic::{Promptable, Sealable};
+use crate::core::sync_impl::NodeValue;
+use crate::llm::Client;
 
 /// Vanilla logic for a semantic LLM node.
 #[derive(Clone)]
@@ -78,15 +78,20 @@ where
     }
 
     async fn exec(&self, input: NodeValue) -> NodeValue {
-        let mut prompt = format!("Task Instruction: {}\n\nInput Data:\n{}\n\n", self.instruction, input);
-        prompt.push_str("Respond ONLY with a valid JSON object matching the following output keys:\n");
+        let mut prompt = format!(
+            "Task Instruction: {}\n\nInput Data:\n{}\n\n",
+            self.instruction, input
+        );
+        prompt.push_str(
+            "Respond ONLY with a valid JSON object matching the following output keys:\n",
+        );
         for field in &self.signature.outputs {
             prompt.push_str(&format!("- {}: {}\n", field.name, field.description));
         }
 
         let model = self.model_override.clone();
         let result: Result<String, LLMError> = self.execute_llm(&prompt, model).await;
-        
+
         match result {
             Ok(json_str) => json!(json_str),
             Err(e) => json!({ "error": e.to_string() }),
@@ -108,9 +113,10 @@ where
                         log::warn!("LLM missed required output field: {}", field.name);
                     }
                 }
-            } else if let Ok(Value::Object(map)) = serde_json::from_value::<Value>(exec_res.clone()) {
+            } else if let Ok(Value::Object(map)) = serde_json::from_value::<Value>(exec_res.clone())
+            {
                 // If exec_res is already an object (though expected string from execute_llm)
-                 for field in &self.signature.outputs {
+                for field in &self.signature.outputs {
                     if let Some(val) = map.get(&field.name) {
                         shared.insert(field.name.clone(), val.clone());
                     }
@@ -141,13 +147,13 @@ where
         // We cannot call specific provider methods directly because S is generic.
         // However, we can use the trait bounds if we had them, or use the config flags.
         // Since we want this to be generic, we'll use a dispatch approach.
-        
+
         // This requires the Client methods to be available without specific typestate if configs are present,
         // but currently they are constrained by HasProvider<T>.
-        
+
         // Let's use a workaround: since we are inside the crate, we can see the configs.
         // We'll implement a hidden method on Client<S> that allows dispatching.
-        
+
         self.client.dispatch_complete(prompt, model).await
     }
 }
@@ -222,9 +228,13 @@ where
     }
 
     pub fn seal(self) -> Executable {
-        let signature = self.signature.expect("Signature is required for semantic node");
-        let instruction = self.instruction.expect("Instruction is required for semantic node");
-        
+        let signature = self
+            .signature
+            .expect("Signature is required for semantic node");
+        let instruction = self
+            .instruction
+            .expect("Instruction is required for semantic node");
+
         let task_id = self.task_id.unwrap_or_else(|| {
             let id = format!("autogen_{}", uuid::Uuid::new_v4().simple());
             log::warn!(
@@ -234,7 +244,12 @@ where
             id
         });
 
-        let mut logic = SemanticLLMLogic::new(self.client.clone(), signature.clone(), instruction, task_id.clone());
+        let mut logic = SemanticLLMLogic::new(
+            self.client.clone(),
+            signature.clone(),
+            instruction,
+            task_id.clone(),
+        );
         logic.model_override = self.model_override;
 
         let sig_hash = signature.structural_hash();
@@ -261,11 +276,17 @@ where
         if let Some(m) = &self.model_override {
             return m.clone();
         }
-        
-        if let Some(config) = &self.client.deepseek_config { return config.default_model.clone(); }
-        if let Some(config) = &self.client.gemini_config { return config.default_model.clone(); }
-        if let Some(config) = &self.client.ollama_config { return config.default_model.clone(); }
-        
+
+        if let Some(config) = &self.client.deepseek_config {
+            return config.default_model.clone();
+        }
+        if let Some(config) = &self.client.gemini_config {
+            return config.default_model.clone();
+        }
+        if let Some(config) = &self.client.ollama_config {
+            return config.default_model.clone();
+        }
+
         "unknown".to_string()
     }
 }

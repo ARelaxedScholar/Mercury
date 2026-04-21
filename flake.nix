@@ -18,6 +18,9 @@
           rustVersion = "1.85.0";
           packageFun = import ./Cargo.nix;
         };
+        rustToolchain = pkgs.rust-bin.stable."1.85.0".default.override {
+          extensions = [ "clippy" "rustfmt" "rust-src" ];
+        };
 
       in rec {
         # This section defines the "finished product"
@@ -33,9 +36,9 @@
           inputsFrom = [ packages.orichalcum ];
 
           nativeBuildInputs = [
+            rustToolchain
             pkgs.rust-analyzer
             pkgs.cargo-edit
-            pkgs.rustfmt
             pkgs.pkg-config
             pkgs.openssl
           ];

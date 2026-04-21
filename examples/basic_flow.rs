@@ -31,7 +31,7 @@ impl NodeLogic for ValidateInputLogic {
 
     fn exec(&self, input: NodeValue) -> NodeValue {
         // Check if we have a valid name
-        if input.is_null() || input.as_str().map_or(true, |s| s.is_empty()) {
+        if input.is_null() || input.as_str().is_none_or(|s| s.is_empty()) {
             // Return a default name
             "Guest".into()
         } else {

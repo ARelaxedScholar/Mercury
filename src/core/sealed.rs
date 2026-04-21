@@ -1,10 +1,10 @@
 use crate::core::Executable;
-use crate::core::sync_impl::NodeValue;
-use std::collections::HashMap;
-use crate::core::telemetry::Telemetry;
 use crate::core::semantic::Sealable;
 use crate::core::semantic::signature::Signature;
+use crate::core::sync_impl::NodeValue;
+use crate::core::telemetry::Telemetry;
 use futures::future::BoxFuture;
+use std::collections::HashMap;
 
 /// An immutable wrapper that encapsulates any executable unit.
 /// Sealing a node snapshots its identity (hashes) and locks its logic for production or optimization.
@@ -15,7 +15,7 @@ pub struct SealedNode {
     pub(crate) signature_hash: String,
     pub(crate) instruction_hash: String,
     pub(crate) model_name: String,
-    
+
     // Optimization metadata slots
     pub training_hash: Option<String>,
     pub optimization_config_hash: Option<String>,
@@ -74,7 +74,7 @@ impl SealedNode {
             // This is easier if we call the phases directly or if run() returns them.
             // For now, we'll let the inner run() do its work, and we'll record telemetry here
             // but we need the inputs/outputs.
-            
+
             // Re-implementing the run loop here to capture I/O
             let (p, e, action) = match &self.inner {
                 Executable::Sync(node) => {
@@ -118,7 +118,7 @@ impl SealedNode {
             action
         })
     }
-    
+
     pub fn inner(&self) -> &Executable {
         &self.inner
     }

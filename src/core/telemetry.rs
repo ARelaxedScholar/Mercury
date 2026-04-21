@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::core::sync_impl::NodeValue;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A single entry in the execution trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +26,12 @@ pub trait Telemetry: Send + Sync {
 /// Simple in-memory collector for traces.
 pub struct MemoryTelemetry {
     traces: std::sync::Mutex<Vec<TraceEntry>>,
+}
+
+impl Default for MemoryTelemetry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryTelemetry {

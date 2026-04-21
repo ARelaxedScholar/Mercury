@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::llm::{error::LLMError, Client, HasProvider};
+use crate::llm::{Client, HasProvider, error::LLMError};
 
 /// Marker type for DeepSeek provider
 pub struct DeepSeek;
@@ -14,7 +14,7 @@ pub struct DeepSeek;
 pub struct DeepSeekConfig {
     /// API key for authentication
     pub api_key: String,
-    /// Base URL (default: https://api.deepseek.com)
+    /// Base URL (default: <https://api.deepseek.com>)
     pub base_url: String,
     /// Default model to use (default: deepseek-reasoner)
     pub default_model: String,
@@ -139,7 +139,7 @@ impl<'a, S> DeepSeekCompletionBuilder<'a, S> {
     }
 }
 
-impl<'a, S> DeepSeekCompletionBuilder<'a, S>
+impl<S> DeepSeekCompletionBuilder<'_, S>
 where
     S: Clone + Send + Sync + 'static,
 {
@@ -234,11 +234,13 @@ where
             .call_deepseek(
                 model_to_use,
                 self.messages,
-                self.temperature,
-                self.max_tokens,
-                self.top_p,
-                self.stop_sequences,
-                self.json_mode,
+                DeepSeekCallOptions {
+                    temperature: self.temperature,
+                    max_tokens: self.max_tokens,
+                    top_p: self.top_p,
+                    stop: self.stop_sequences,
+                    json_mode: self.json_mode,
+                },
             )
             .await?;
 
@@ -271,6 +273,15 @@ pub struct DeepSeekModel {
 #[derive(Debug, Deserialize)]
 struct DeepSeekModelsResponse {
     pub data: Vec<DeepSeekModel>,
+}
+
+#[derive(Debug, Default)]
+pub struct DeepSeekCallOptions {
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub top_p: Option<f32>,
+    pub stop: Option<Vec<String>>,
+    pub json_mode: bool,
 }
 
 impl<S> Client<S>
@@ -306,17 +317,13 @@ where
         &self,
         model: impl Into<String>,
         messages: Vec<DeepSeekMessage>,
-        temperature: Option<f32>,
-        max_tokens: Option<u32>,
-        top_p: Option<f32>,
-        stop: Option<Vec<String>>,
-        json_mode: bool,
+        options: DeepSeekCallOptions,
     ) -> Result<DeepSeekResponse, LLMError> {
         let config = self.deepseek_config.as_ref().ok_or_else(|| {
             LLMError::ProviderNotConfigured("DeepSeek not configured".to_string())
         })?;
 
-        let response_format = if json_mode {
+        let response_format = if options.json_mode {
             Some(DeepSeekResponseFormat {
                 format_type: "json_object".to_string(),
             })
@@ -327,10 +334,10 @@ where
         let request = DeepSeekRequest {
             model: model.into(),
             messages,
-            temperature,
-            max_tokens,
-            top_p,
-            stop,
+            temperature: options.temperature,
+            max_tokens: options.max_tokens,
+            top_p: options.top_p,
+            stop: options.stop,
             response_format,
             stream: false,
         };
@@ -357,8 +364,9 @@ where
         Ok(deepseek_response)
     }
 
-    pub fn deepseek_complete(&self) -> DeepSeekCompletionBuilder<'_, S> 
-    where S: HasProvider<DeepSeek>
+    pub fn deepseek_complete(&self) -> DeepSeekCompletionBuilder<'_, S>
+    where
+        S: HasProvider<DeepSeek>,
     {
         self.deepseek_complete_internal()
     }

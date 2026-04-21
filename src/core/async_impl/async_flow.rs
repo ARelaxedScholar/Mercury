@@ -2,7 +2,7 @@ use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
 use crate::core::telemetry::Telemetry;
 use crate::core::validation::ValidationResult;
-use crate::core::{Executable, Executable::Async, Executable::Sync, Executable::Sealed};
+use crate::core::{Executable, Executable::Async, Executable::Sealed, Executable::Sync};
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -36,7 +36,10 @@ impl std::ops::DerefMut for AsyncFlow {
 
 impl AsyncFlow {
     pub fn new(start: Executable) -> AsyncFlow {
-        AsyncFlow(AsyncNode::new(AsyncFlowLogic { start, telemetry: None }))
+        AsyncFlow(AsyncNode::new(AsyncFlowLogic {
+            start,
+            telemetry: None,
+        }))
     }
 
     pub async fn run(&self, shared: &mut HashMap<String, NodeValue>) -> Option<String> {
@@ -50,11 +53,18 @@ impl AsyncFlow {
         telemetry: Option<Arc<dyn Telemetry>>,
     ) -> Option<String> {
         let mut cloned_self = self.clone();
-        if let Some(logic) = cloned_self.behaviour.as_any_mut().downcast_mut::<AsyncFlowLogic>() {
+        if let Some(logic) = cloned_self
+            .behaviour
+            .as_any_mut()
+            .downcast_mut::<AsyncFlowLogic>()
+        {
             logic.telemetry = telemetry.clone();
         }
-        
-        cloned_self.0.run_with_telemetry(shared, telemetry.as_deref().map(|t| t as &dyn Telemetry)).await
+
+        cloned_self
+            .0
+            .run_with_telemetry(shared, telemetry.as_deref().map(|t| t as &dyn Telemetry))
+            .await
     }
 
     pub fn start(&mut self, start: Executable) {
@@ -78,7 +88,7 @@ impl AsyncFlow {
 
         let behaviour: &dyn AsyncNodeLogic = &*self.behaviour;
         if let Some(flow_logic) = behaviour.as_any().downcast_ref::<AsyncFlowLogic>() {
-            self.validate_recursive(
+            Self::validate_recursive(
                 &flow_logic.start,
                 &mut available_keys,
                 &mut visited,
@@ -90,7 +100,6 @@ impl AsyncFlow {
     }
 
     fn validate_recursive(
-        &self,
         current: &Executable,
         available_keys: &mut HashSet<String>,
         visited: &mut HashSet<String>,
@@ -99,7 +108,9 @@ impl AsyncFlow {
         let sealable = match current {
             Executable::Sync(node) => node.behaviour.as_sealable(),
             Executable::Async(node) => node.behaviour.as_sealable(),
-            Executable::Sealed(sealed) => Some(sealed.as_ref() as &dyn crate::core::semantic::Sealable),
+            Executable::Sealed(sealed) => {
+                Some(sealed.as_ref() as &dyn crate::core::semantic::Sealable)
+            }
         };
 
         if let Some(s) = sealable {
@@ -127,7 +138,7 @@ impl AsyncFlow {
 
         for successor in current.successors().values() {
             let mut branch_keys = available_keys.clone();
-            self.validate_recursive(successor, &mut branch_keys, visited, result);
+            Self::validate_recursive(successor, &mut branch_keys, visited, result);
         }
     }
 }
@@ -156,7 +167,7 @@ impl AsyncNodeLogic for AsyncFlowLogic {
             } else {
                 (HashMap::new(), HashMap::new())
             };
-            
+
         let mut current: Option<Executable> = Some(self.start.clone());
         let mut last_action: String = "".into();
 
@@ -171,7 +182,10 @@ impl AsyncNodeLogic for AsyncFlowLogic {
 
                     match tokio::task::spawn_blocking(move || {
                         let action = sync_clone
-                            .run_with_telemetry(&mut shared_clone, telemetry_ref.as_deref().map(|t| t as &dyn Telemetry))
+                            .run_with_telemetry(
+                                &mut shared_clone,
+                                telemetry_ref.as_deref().map(|t| t as &dyn Telemetry),
+                            )
                             .unwrap_or("default".into());
                         (action, shared_clone)
                     })
@@ -194,11 +208,10 @@ impl AsyncNodeLogic for AsyncFlowLogic {
                         .await
                         .unwrap_or("default".into())
                 }
-                Sealed(ref sealed_node) => {
-                    sealed_node.run(&mut shared, self.telemetry.as_deref())
-                        .await
-                        .unwrap_or("default".into())
-                }
+                Sealed(ref sealed_node) => sealed_node
+                    .run(&mut shared, self.telemetry.as_deref())
+                    .await
+                    .unwrap_or("default".into()),
             };
 
             let next_executable = &curr.successors().get(&last_action).cloned();

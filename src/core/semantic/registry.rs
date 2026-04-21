@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Represents a record of an optimization run for a specific task.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +20,12 @@ pub struct OptimizationRecord {
 /// This implementation is a placeholder for a full SQLite-based registry.
 pub struct OptimizationRegistry {
     records: HashMap<String, OptimizationRecord>,
+}
+
+impl Default for OptimizationRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OptimizationRegistry {
@@ -42,8 +48,15 @@ impl OptimizationRegistry {
         signature_hash: &str,
         instruction_hash: &str,
     ) -> Option<&OptimizationRecord> {
-        self.records.values()
-            .filter(|r| r.signature_hash == signature_hash && r.instruction_hash == instruction_hash)
-            .max_by(|a, b| a.fitness_score.partial_cmp(&b.fitness_score).unwrap_or(std::cmp::Ordering::Equal))
+        self.records
+            .values()
+            .filter(|r| {
+                r.signature_hash == signature_hash && r.instruction_hash == instruction_hash
+            })
+            .max_by(|a, b| {
+                a.fitness_score
+                    .partial_cmp(&b.fitness_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 }

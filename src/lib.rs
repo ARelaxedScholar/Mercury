@@ -52,8 +52,8 @@
 //!
 //! ## Module Organization
 //!
-//! - [`sync`]: Synchronous node and flow implementations
-//! - [`async_impl`]: Asynchronous node and flow implementations  
+//! - `sync`-style types: Synchronous node and flow implementations
+//! - `async_impl`-style types: Asynchronous node and flow implementations
 //! - [`prelude`]: Commonly used types and traits (import with `use orichalcum::prelude::*`)
 //! - [`sync_prelude`]: Only synchronous types (import with `use orichalcum::sync_prelude::*`)
 //! - [`async_prelude`]: Only asynchronous types (import with `use orichalcum::async_prelude::*`)
@@ -71,24 +71,24 @@ mod core;
 // Core types
 pub use core::Executable;
 pub use core::semantic::registry::{OptimizationRecord, OptimizationRegistry};
-pub use core::semantic::signature::{Signature, Field};
+pub use core::semantic::signature::{Field, Signature};
 pub use core::semantic::{Promptable, Sealable};
-pub use core::telemetry::{Telemetry, TraceEntry, MemoryTelemetry};
+pub use core::telemetry::{MemoryTelemetry, Telemetry, TraceEntry};
 pub use core::validation::{KeyAvailability, ValidationIssue, ValidationResult};
 
 // Synchronous implementations
+pub use core::sync_impl::NodeValue;
 pub use core::sync_impl::batch_flow::BatchFlow;
-pub use core::sync_impl::batch_node::{new_batch_node, BatchLogic};
+pub use core::sync_impl::batch_node::{BatchLogic, new_batch_node};
 pub use core::sync_impl::flow::{Flow, FlowLogic};
 pub use core::sync_impl::node::{Node, NodeCore, NodeLogic};
-pub use core::sync_impl::NodeValue;
 
 // Asynchronous implementations
-pub use core::async_impl::async_batch_node::{new_async_batch_node, AsyncBatchLogic};
+pub use core::async_impl::async_batch_node::{AsyncBatchLogic, new_async_batch_node};
 pub use core::async_impl::async_flow::{AsyncFlow, AsyncFlowLogic};
 pub use core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 pub use core::async_impl::async_parallel_batch_node::{
-    new_async_parallel_batch_node, AsyncParallelBatchLogic,
+    AsyncParallelBatchLogic, new_async_parallel_batch_node,
 };
 
 // ============================================================================
@@ -103,9 +103,6 @@ pub use core::async_impl::async_parallel_batch_node::{
 /// ```
 pub mod prelude {
     pub use super::{
-        new_async_batch_node,
-        new_async_parallel_batch_node,
-        new_batch_node,
         AsyncBatchLogic,
         AsyncFlow,
         AsyncFlowLogic,
@@ -118,23 +115,26 @@ pub mod prelude {
         BatchLogic,
         // Core
         Executable,
-        OptimizationRecord,
-        OptimizationRegistry,
-        Sealable,
-        Promptable,
-        Telemetry,
-        TraceEntry,
-        MemoryTelemetry,
-        KeyAvailability,
-        ValidationIssue,
-        ValidationResult,
         Flow,
         FlowLogic,
+        KeyAvailability,
+        MemoryTelemetry,
         // Sync
         Node,
         NodeCore,
         NodeLogic,
         NodeValue,
+        OptimizationRecord,
+        OptimizationRegistry,
+        Promptable,
+        Sealable,
+        Telemetry,
+        TraceEntry,
+        ValidationIssue,
+        ValidationResult,
+        new_async_batch_node,
+        new_async_parallel_batch_node,
+        new_batch_node,
     };
 }
 
@@ -149,8 +149,8 @@ pub mod prelude {
 /// ```
 pub mod sync_prelude {
     pub use super::{
-        new_batch_node, BatchFlow, BatchLogic, Executable, Flow, FlowLogic, Node, NodeCore,
-        NodeLogic, NodeValue,
+        BatchFlow, BatchLogic, Executable, Flow, FlowLogic, Node, NodeCore, NodeLogic, NodeValue,
+        new_batch_node,
     };
 }
 
@@ -165,8 +165,9 @@ pub mod sync_prelude {
 /// ```
 pub mod async_prelude {
     pub use super::{
-        new_async_batch_node, new_async_parallel_batch_node, AsyncBatchLogic, AsyncFlow,
-        AsyncFlowLogic, AsyncNode, AsyncNodeLogic, AsyncParallelBatchLogic, Executable, NodeValue,
+        AsyncBatchLogic, AsyncFlow, AsyncFlowLogic, AsyncNode, AsyncNodeLogic,
+        AsyncParallelBatchLogic, Executable, NodeValue, new_async_batch_node,
+        new_async_parallel_batch_node,
     };
 }
 
@@ -179,9 +180,9 @@ pub mod llm;
 
 #[cfg(feature = "llm")]
 pub use llm::{
+    Client,
     error::LLMError,
     ollama::{Ollama, OllamaResponse},
-    Client,
 };
 
 // ============================================================================

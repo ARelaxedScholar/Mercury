@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::llm::{error::LLMError, Client, HasProvider};
+use crate::llm::{Client, HasProvider, error::LLMError};
 
 /// Marker type for Gemini provider
 pub struct Gemini;
@@ -14,7 +14,7 @@ pub struct Gemini;
 pub struct GeminiConfig {
     /// API key for authentication
     pub api_key: String,
-    /// Base URL (default: https://generativelanguage.googleapis.com)
+    /// Base URL (default: <https://generativelanguage.googleapis.com>)
     pub base_url: String,
     /// Default model to use (default: gemini-3-flash-preview)
     pub default_model: String,
@@ -183,7 +183,7 @@ impl<'a, S> GeminiCompletionBuilder<'a, S> {
     }
 }
 
-impl<'a, S> GeminiCompletionBuilder<'a, S>
+impl<S> GeminiCompletionBuilder<'_, S>
 where
     S: Clone + Send + Sync + 'static,
 {
@@ -254,9 +254,10 @@ where
     }
 
     pub(crate) async fn execute(self) -> Result<String, LLMError> {
-        let config = self.client.gemini_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Gemini not configured".to_string())
-        })?;
+        let config =
+            self.client.gemini_config.as_ref().ok_or_else(|| {
+                LLMError::ProviderNotConfigured("Gemini not configured".to_string())
+            })?;
 
         let model_to_use = self.model.unwrap_or_else(|| config.default_model.clone());
 
@@ -295,7 +296,11 @@ where
             top_p: self.top_p,
             top_k: self.top_k,
             stop_sequences: self.stop_sequences,
-            response_mime_type: if self.json_mode { Some("application/json".to_string()) } else { None },
+            response_mime_type: if self.json_mode {
+                Some("application/json".to_string())
+            } else {
+                None
+            },
         });
 
         let response = self
@@ -350,9 +355,10 @@ where
 {
     /// List available models from Gemini
     pub async fn gemini_list_models(&self) -> Result<Vec<GeminiModel>, LLMError> {
-        let config = self.gemini_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Gemini not configured".to_string())
-        })?;
+        let config = self
+            .gemini_config
+            .as_ref()
+            .ok_or_else(|| LLMError::ProviderNotConfigured("Gemini not configured".to_string()))?;
 
         let url = format!("{}/v1beta/models?key={}", config.base_url, config.api_key);
 
@@ -378,9 +384,10 @@ where
         generation_config: Option<GeminiGenerationConfig>,
         _json_mode: bool,
     ) -> Result<GeminiResponse, LLMError> {
-        let config = self.gemini_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Gemini not configured".to_string())
-        })?;
+        let config = self
+            .gemini_config
+            .as_ref()
+            .ok_or_else(|| LLMError::ProviderNotConfigured("Gemini not configured".to_string()))?;
 
         let model_name = model.into();
         let url = format!(
@@ -415,8 +422,9 @@ where
         Ok(gemini_response)
     }
 
-    pub fn gemini_complete(&self) -> GeminiCompletionBuilder<'_, S> 
-    where S: HasProvider<Gemini>
+    pub fn gemini_complete(&self) -> GeminiCompletionBuilder<'_, S>
+    where
+        S: HasProvider<Gemini>,
     {
         self.gemini_complete_internal()
     }

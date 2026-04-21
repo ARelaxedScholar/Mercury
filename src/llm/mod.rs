@@ -250,7 +250,11 @@ impl<O, D> Client<Providers<O, D, Enabled>> {
 impl<S: Clone + Send + Sync + 'static> Client<S> {
     /// Internal dispatch method to call the first available provider.
     /// Used by semantic nodes where the provider typestate is erased.
-    pub(crate) async fn dispatch_complete(&self, prompt: &str, model: Option<String>) -> Result<String, LLMError> {
+    pub(crate) async fn dispatch_complete(
+        &self,
+        prompt: &str,
+        model: Option<String>,
+    ) -> Result<String, LLMError> {
         if self.deepseek_config.is_some() {
             return self.execute_deepseek(prompt, model).await;
         }
@@ -263,24 +267,50 @@ impl<S: Clone + Send + Sync + 'static> Client<S> {
             return self.execute_ollama(prompt, model).await;
         }
 
-        Err(LLMError::ProviderNotConfigured("No LLM provider available".to_string()))
+        Err(LLMError::ProviderNotConfigured(
+            "No LLM provider available".to_string(),
+        ))
     }
 
-    async fn execute_deepseek(&self, prompt: &str, model: Option<String>) -> Result<String, LLMError> {
-        let mut builder = deepseek::DeepSeekCompletionBuilder::new(self).user(prompt).json_mode(true);
-        if let Some(m) = model { builder = builder.model(m); }
+    async fn execute_deepseek(
+        &self,
+        prompt: &str,
+        model: Option<String>,
+    ) -> Result<String, LLMError> {
+        let mut builder = deepseek::DeepSeekCompletionBuilder::new(self)
+            .user(prompt)
+            .json_mode(true);
+        if let Some(m) = model {
+            builder = builder.model(m);
+        }
         builder.execute().await
     }
 
-    async fn execute_gemini(&self, prompt: &str, model: Option<String>) -> Result<String, LLMError> {
-        let mut builder = gemini::GeminiCompletionBuilder::new(self).user(prompt).json_mode(true);
-        if let Some(m) = model { builder = builder.model(m); }
+    async fn execute_gemini(
+        &self,
+        prompt: &str,
+        model: Option<String>,
+    ) -> Result<String, LLMError> {
+        let mut builder = gemini::GeminiCompletionBuilder::new(self)
+            .user(prompt)
+            .json_mode(true);
+        if let Some(m) = model {
+            builder = builder.model(m);
+        }
         builder.execute().await
     }
 
-    async fn execute_ollama(&self, prompt: &str, model: Option<String>) -> Result<String, LLMError> {
-        let mut builder = ollama::OllamaCompletionBuilder::new(self).user(prompt).json_mode(true);
-        if let Some(m) = model { builder = builder.model(m); }
+    async fn execute_ollama(
+        &self,
+        prompt: &str,
+        model: Option<String>,
+    ) -> Result<String, LLMError> {
+        let mut builder = ollama::OllamaCompletionBuilder::new(self)
+            .user(prompt)
+            .json_mode(true);
+        if let Some(m) = model {
+            builder = builder.model(m);
+        }
         builder.execute().await
     }
 }
@@ -338,7 +368,8 @@ mod tests {
         assert_eq!(config.base_url, "https://api.deepseek.com");
         assert_eq!(config.default_model, "deepseek-reasoner");
 
-        let client_custom = Client::new().with_deepseek_at("test-key", "https://custom.deepseek.com");
+        let client_custom =
+            Client::new().with_deepseek_at("test-key", "https://custom.deepseek.com");
         let config_custom = client_custom.deepseek_config.unwrap();
         assert_eq!(config_custom.base_url, "https://custom.deepseek.com");
     }

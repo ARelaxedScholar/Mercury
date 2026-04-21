@@ -9,8 +9,8 @@ use async_impl::async_node::AsyncNode;
 use sealed::SealedNode;
 use std::collections::HashMap;
 use std::sync::Arc;
-use sync_impl::node::Node;
 use sync_impl::NodeValue;
+use sync_impl::node::Node;
 use telemetry::Telemetry;
 
 /// The General Executable Enum

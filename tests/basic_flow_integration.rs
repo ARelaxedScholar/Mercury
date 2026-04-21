@@ -23,7 +23,7 @@ fn test_basic_flow_example_logic() {
         }
 
         fn exec(&self, input: NodeValue) -> NodeValue {
-            if input.is_null() || input.as_str().map_or(true, |s| s.is_empty()) {
+            if input.is_null() || input.as_str().is_none_or(|s| s.is_empty()) {
                 "Guest".into()
             } else {
                 input
@@ -203,19 +203,23 @@ fn test_basic_flow_example_logic() {
 
         // Verify results
         assert_eq!(state.get("user_name"), Some(&json!("Alice")));
-        assert!(state
-            .get("greeting")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("Alice"));
+        assert!(
+            state
+                .get("greeting")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains("Alice")
+        );
         assert_eq!(state.get("sentiment"), Some(&json!("positive")));
-        assert!(state
-            .get("response")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("glad"));
+        assert!(
+            state
+                .get("response")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains("glad")
+        );
     }
 
     // Test with default name
@@ -242,18 +246,22 @@ fn test_basic_flow_example_logic() {
 
         // Verify results
         assert_eq!(state.get("user_name"), Some(&json!("Guest")));
-        assert!(state
-            .get("greeting")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("Guest"));
+        assert!(
+            state
+                .get("greeting")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains("Guest")
+        );
         assert_eq!(state.get("sentiment"), Some(&json!("neutral")));
-        assert!(state
-            .get("response")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("explore"));
+        assert!(
+            state
+                .get("response")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains("explore")
+        );
     }
 }

@@ -38,13 +38,18 @@ impl ValidationResult {
     }
 
     pub fn is_safe(&self) -> bool {
-        !self.issues.iter().any(|i| matches!(i, ValidationIssue::Error(_)))
+        !self
+            .issues
+            .iter()
+            .any(|i| matches!(i, ValidationIssue::Error(_)))
     }
 
     pub fn has_warnings(&self) -> bool {
-        self.issues.iter().any(|i| matches!(i, ValidationIssue::Warning(_)))
+        self.issues
+            .iter()
+            .any(|i| matches!(i, ValidationIssue::Warning(_)))
     }
-    
+
     pub fn print_summary(&self) {
         if self.is_safe() && !self.has_warnings() {
             println!("✅ Workflow validation passed: All data-flow contracts are satisfied.");

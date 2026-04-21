@@ -26,6 +26,12 @@ pub struct Signature {
     pub outputs: Vec<Field>,
 }
 
+impl Default for Signature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Signature {
     pub fn new() -> Self {
         Self {
@@ -91,6 +97,7 @@ impl FromStr for Signature {
 #[macro_export]
 macro_rules! signature {
     ($s:expr) => {
-        $s.parse::<$crate::core::semantic::signature::Signature>().expect("Invalid signature shorthand")
+        $s.parse::<$crate::core::semantic::signature::Signature>()
+            .expect("Invalid signature shorthand")
     };
 }

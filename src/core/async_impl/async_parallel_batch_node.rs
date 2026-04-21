@@ -1,7 +1,7 @@
 use crate::core::async_impl::async_node::{AsyncNode, AsyncNodeLogic};
 use crate::core::sync_impl::NodeValue;
 use async_trait::async_trait;
-use futures::stream::{iter, StreamExt};
+use futures::stream::{StreamExt, iter};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -46,7 +46,7 @@ impl<L: AsyncNodeLogic + Clone> AsyncNodeLogic for AsyncParallelBatchLogic<L> {
     async fn exec(&self, items: NodeValue) -> NodeValue {
         // Check that input is indeed an array
         if let Some(arr) = items.as_array() {
-            let owned_items: Vec<NodeValue> = arr.iter().cloned().collect();
+            let owned_items: Vec<NodeValue> = arr.to_vec();
             let logic = Arc::new(self.logic.clone());
             let results: Vec<NodeValue> = iter(owned_items)
                 .map(move |item| {
@@ -235,7 +235,7 @@ mod tests {
             .await;
         assert_eq!(post_result, Some("default".to_string()));
         assert_eq!(shared_mut.get("prep_res"), Some(&json!("prep_marker")));
-        assert!(shared_mut.get("exec_res").is_some());
+        assert!(shared_mut.contains_key("exec_res"));
     }
 
     #[tokio::test]

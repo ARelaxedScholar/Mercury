@@ -1,9 +1,9 @@
+use crate::core::Executable;
 use crate::core::sealed::SealedNode;
 use crate::core::semantic::{Promptable, Sealable};
 use crate::core::sync_impl::AsAny;
 use crate::core::sync_impl::NodeValue;
 use crate::core::telemetry::Telemetry;
-use crate::core::Executable;
 use std::collections::HashMap;
 use std::sync::Arc;
 

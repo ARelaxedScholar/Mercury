@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::llm::{error::LLMError, Client, HasProvider};
+use crate::llm::{Client, HasProvider, error::LLMError};
 
 /// Marker type for Ollama provider
 pub struct Ollama;
@@ -162,7 +162,7 @@ impl<'a, S> OllamaCompletionBuilder<'a, S> {
     }
 }
 
-impl<'a, S> OllamaCompletionBuilder<'a, S>
+impl<S> OllamaCompletionBuilder<'_, S>
 where
     S: Clone + Send + Sync + 'static,
 {
@@ -233,9 +233,10 @@ where
     }
 
     pub(crate) async fn execute(self) -> Result<String, LLMError> {
-        let config = self.client.ollama_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Ollama not configured".to_string())
-        })?;
+        let config =
+            self.client.ollama_config.as_ref().ok_or_else(|| {
+                LLMError::ProviderNotConfigured("Ollama not configured".to_string())
+            })?;
 
         let model_to_use = self.model.unwrap_or_else(|| config.default_model.clone());
 
@@ -305,9 +306,10 @@ where
 {
     /// List available models from Ollama
     pub async fn ollama_list_models(&self) -> Result<Vec<OllamaModel>, LLMError> {
-        let config = self.ollama_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Ollama not configured".to_string())
-        })?;
+        let config = self
+            .ollama_config
+            .as_ref()
+            .ok_or_else(|| LLMError::ProviderNotConfigured("Ollama not configured".to_string()))?;
 
         let response = self
             .client
@@ -333,9 +335,10 @@ where
         prompt: impl Into<String>,
         stream: bool,
     ) -> Result<OllamaResponse, LLMError> {
-        let config = self.ollama_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Ollama not configured".to_string())
-        })?;
+        let config = self
+            .ollama_config
+            .as_ref()
+            .ok_or_else(|| LLMError::ProviderNotConfigured("Ollama not configured".to_string()))?;
 
         let payload = json!({
             "model": model.into(),
@@ -370,9 +373,10 @@ where
         options: Option<OllamaOptions>,
         json_mode: bool,
     ) -> Result<OllamaChatResponse, LLMError> {
-        let config = self.ollama_config.as_ref().ok_or_else(|| {
-            LLMError::ProviderNotConfigured("Ollama not configured".to_string())
-        })?;
+        let config = self
+            .ollama_config
+            .as_ref()
+            .ok_or_else(|| LLMError::ProviderNotConfigured("Ollama not configured".to_string()))?;
 
         let format = if json_mode {
             Some("json".to_string())
@@ -408,8 +412,9 @@ where
         Ok(chat_response)
     }
 
-    pub fn ollama_complete(&self) -> OllamaCompletionBuilder<'_, S> 
-    where S: HasProvider<Ollama>
+    pub fn ollama_complete(&self) -> OllamaCompletionBuilder<'_, S>
+    where
+        S: HasProvider<Ollama>,
     {
         self.ollama_complete_internal()
     }
