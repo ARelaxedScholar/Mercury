@@ -1,6 +1,6 @@
 [package]
 name = "orichalcum"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 description = "A brutally-safe, composable agent orchestration framework for building complex, multi-step workflows."
 license = "MIT"

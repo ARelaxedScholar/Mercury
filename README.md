@@ -1,6 +1,6 @@
 # Orichalcum: An Agent Orchestration Framework in Rust
 
-**License**: [MIT](LICENSE) | **Crates.io**: [v0.4.0](https://crates.io/crates/orichalcum) | **Docs**: [docs.rs](https://docs.rs/orichalcum)
+**License**: [MIT](LICENSE) | **Crates.io**: [v0.4.1](https://crates.io/crates/orichalcum) | **Docs**: [docs.rs](https://docs.rs/orichalcum)
 
 A brutally-safe, composable agent orchestration framework for building complex, multi-step workflows.
 
@@ -21,7 +21,7 @@ Orichalcum is a spiritual successor to Python's [PocketFlow](https://github.com/
 *   **Node**: The fundamental unit of work. A `Node` encapsulates a piece of logic with three steps: `prep` (prepare inputs), `exec` (execute the core logic), and `post` (process results and update state).
 *   **Flow**: A special `Node` that orchestrates a graph of other `Node`s. It manages the execution sequence based on the outputs of each `Node`.
 *   **Shared State**: A `HashMap` that is passed through the entire `Flow`. Nodes can read from this state to get context and write to it to pass results to subsequent nodes.
-*   **Semantic Layer (v0.4.0)**: Define structural contracts for your nodes using `Signature`. This allows for compile-time or runtime validation of your workflows.
+*   **Semantic Layer (v0.4.1)**: Define structural contracts for your nodes using `Signature`. This allows for compile-time or runtime validation of your workflows.
 
 ## Installation
 
@@ -29,16 +29,16 @@ Add Orichalcum to your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-orichalcum = "0.4.0"
+orichalcum = "0.4.1"
 
 # For LLM features (Ollama, Gemini, DeepSeek)
-# orichalcum = { version = "0.4.0", features = ["llm"] }
+# orichalcum = { version = "0.4.1", features = ["llm"] }
 
 # For Telemetry features (tracing, optimization registry)
-# orichalcum = { version = "0.4.0", features = ["telemetry"] }
+# orichalcum = { version = "0.4.1", features = ["telemetry"] }
 ```
 
-## Quick Start: Semantic LLM Nodes (v0.4.0)
+## Quick Start: Semantic LLM Nodes (v0.4.1)
 
 The most powerful way to use Orichalcum is via **Semantic Nodes**. These nodes have defined input/output contracts and are "sealed" for production stability.
 
@@ -114,7 +114,7 @@ fn main() {
 ## Features
 
 *   **Semantic Layer**: Define I/O contracts with `Signature` for brutally-safe data flow.
-*   **Telemetry (v0.4.0)**: Built-in tracing for I/O, model names, and execution timestamps.
+*   **Telemetry (v0.4.1)**: Built-in tracing for I/O, model names, and execution timestamps.
 *   **Unified LLM Builders**: Fluent API for `Gemini`, `DeepSeek`, and `Ollama`.
 *   **Async & Parallel**: First-class support for `tokio` and parallel batch processing.
 *   **Nix Support**: Includes `flake.nix` for a reproducible development environment.

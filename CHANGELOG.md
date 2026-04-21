@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-21
+
+### Fixed
+- Restored default-feature builds and crate packaging by aligning feature gating with the code that depends on it.
+- Resolved release-blocking formatting, clippy, rustdoc, and Nix toolchain issues so the release gate passes reproducibly in `nix develop`.
+- Updated the transitive `lz4_flex` dependency to `0.11.6` and regenerated `Cargo.nix` to remove the yanked lockfile entry.
+
 ## [0.4.0] - 2026-02-10
 
 ### Added
