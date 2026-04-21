@@ -3,6 +3,7 @@ pub mod sealed;
 pub mod semantic;
 pub mod sync_impl;
 pub mod telemetry;
+pub mod typed;
 pub mod validation;
 
 use async_impl::async_node::AsyncNode;

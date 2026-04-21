@@ -74,6 +74,7 @@ pub use core::semantic::registry::{OptimizationRecord, OptimizationRegistry};
 pub use core::semantic::signature::{Field, Signature};
 pub use core::semantic::{Promptable, Sealable};
 pub use core::telemetry::{MemoryTelemetry, Telemetry, TraceEntry};
+pub use core::typed::{Branch, FlowState, Next, StateNode, Transition};
 pub use core::validation::{KeyAvailability, ValidationIssue, ValidationResult};
 
 // Synchronous implementations
@@ -91,6 +92,12 @@ pub use core::async_impl::async_parallel_batch_node::{
     AsyncParallelBatchLogic, new_async_parallel_batch_node,
 };
 
+
+/// Typed workflow API organized under its own module so the existing dynamic `Flow`
+/// can remain stable while the typed model matures.
+pub mod typed {
+    pub use crate::core::typed::{Branch, Flow, FlowState, Next, StateNode, Transition};
+}
 // ============================================================================
 // Prelude Modules - Convenient Bulk Imports
 // ============================================================================
@@ -169,6 +176,12 @@ pub mod async_prelude {
         AsyncParallelBatchLogic, Executable, NodeValue, new_async_batch_node,
         new_async_parallel_batch_node,
     };
+}
+
+/// Prelude for typed, phase-aware workflows.
+pub mod typed_prelude {
+    pub use super::{Branch, FlowState, Next, StateNode, Transition};
+    pub use super::typed::Flow;
 }
 
 // ============================================================================
