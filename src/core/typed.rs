@@ -10,12 +10,16 @@
 //! - `Next<R>` and `Branch<P, D, R>` keep routing decisions strongly typed
 //!
 //! This module does **not** yet encode an entire workflow graph in the type system.
-//! What it does guarantee is narrower and still useful: phase-incompatible nodes and
-//! transitions are rejected at compile time when callers stay on the typed workflow API.
+//! What it does guarantee is narrower and still useful: phase-incompatible nodes,
+//! transitions, and branch handlers are rejected at compile time when callers stay on
+//! the typed workflow API. Route coverage and finish coverage are still validated at
+//! runtime by the branch builder.
 //!
 //! # Example
 //! ```rust
-//! use orichalcum::typed::{Flow, FlowState, Next, StateNode, Transition};
+//! use orichalcum::typed::{
+//!     BranchBuildError, BranchExecuteError, Flow, FlowState, Next, StateNode, Transition,
+//! };
 //!
 //! #[derive(Debug, Clone, PartialEq, Eq)]
 //! struct Draft;
@@ -41,16 +45,38 @@
 //!     EmptyDocument,
 //! }
 //!
+//! #[derive(Debug)]
+//! enum ReviewWorkflowError {
+//!     Review(ReviewError),
+//!     Build(BranchBuildError<ReviewDecision>),
+//!     Execute(BranchExecuteError<ReviewDecision, ReviewError>),
+//! }
+//!
+//! impl From<ReviewError> for ReviewWorkflowError {
+//!     fn from(value: ReviewError) -> Self {
+//!         Self::Review(value)
+//!     }
+//! }
+//!
+//! impl From<BranchBuildError<ReviewDecision>> for ReviewWorkflowError {
+//!     fn from(value: BranchBuildError<ReviewDecision>) -> Self {
+//!         Self::Build(value)
+//!     }
+//! }
+//!
+//! impl From<BranchExecuteError<ReviewDecision, ReviewError>> for ReviewWorkflowError {
+//!     fn from(value: BranchExecuteError<ReviewDecision, ReviewError>) -> Self {
+//!         Self::Execute(value)
+//!     }
+//! }
+//!
 //! struct SubmitForReview;
 //!
 //! impl Transition<Draft, ReviewData> for SubmitForReview {
 //!     type NextPhase = Review;
 //!     type Error = ReviewError;
 //!
-//!     fn advance(
-//!         &self,
-//!         state: &mut FlowState<Draft, ReviewData>,
-//!     ) -> Result<(), Self::Error> {
+//!     fn advance(&self, state: &mut FlowState<Draft, ReviewData>) -> Result<(), Self::Error> {
 //!         if state.data().document.trim().is_empty() {
 //!             return Err(ReviewError::EmptyDocument);
 //!         }
@@ -88,24 +114,51 @@
 //!     }
 //! }
 //!
+//! struct RequestChanges;
+//!
+//! impl Transition<Review, ReviewData> for RequestChanges {
+//!     type NextPhase = Draft;
+//!     type Error = ReviewError;
+//!
+//!     fn advance(
+//!         &self,
+//!         state: &mut FlowState<Review, ReviewData>,
+//!     ) -> Result<(), Self::Error> {
+//!         state.data_mut().approved = false;
+//!         Ok(())
+//!     }
+//! }
+//!
+//! enum ReviewOutcome {
+//!     Approved(Flow<Approved, ReviewData>),
+//!     Draft(Flow<Draft, ReviewData>),
+//!     StillInReview(Flow<Review, ReviewData>),
+//! }
+//!
 //! let review_flow = Flow::<Draft, _>::new(ReviewData {
 //!     document: "Ship it".into(),
 //!     approved: false,
 //! })
-//! .transition(SubmitForReview)
-//! .unwrap();
+//! .transition(SubmitForReview)?;
 //!
-//! let decision = review_flow.step(&ReviewNode).unwrap();
+//! let outcome: ReviewOutcome = review_flow
+//!     .step(&ReviewNode)?
+//!     .branch::<ReviewOutcome>()
+//!     .on(ReviewDecision::Approve, Approve, ReviewOutcome::Approved)?
+//!     .on(
+//!         ReviewDecision::RequestChanges,
+//!         RequestChanges,
+//!         ReviewOutcome::Draft,
+//!     )?
+//!     .on_finish(ReviewOutcome::StillInReview)?
+//!     .finish()?;
 //!
-//! let approved_flow = decision
-//!     .resolve(|flow, next| match next {
-//!         Next::Route(ReviewDecision::Approve) => flow.transition(Approve),
-//!         Next::Route(ReviewDecision::RequestChanges) => unreachable!("example review always approves"),
-//!         Next::Finish => unreachable!("review must pick a route"),
-//!     })
-//!     .unwrap();
-//!
-//! assert!(approved_flow.data().approved);
+//! match outcome {
+//!     ReviewOutcome::Approved(flow) => assert!(flow.data().approved),
+//!     ReviewOutcome::Draft(_) => unreachable!("example review always approves"),
+//!     ReviewOutcome::StillInReview(_) => unreachable!("review node should route"),
+//! }
+//! # Ok::<(), ReviewWorkflowError>(())
 //! ```
 //!
 //! # Compile-time phase safety
@@ -123,10 +176,7 @@
 //!     type NextPhase = Approved;
 //!     type Error = ReviewError;
 //!
-//!     fn advance(
-//!         &self,
-//!         _state: &mut FlowState<Review, Data>,
-//!     ) -> Result<(), Self::Error> {
+//!     fn advance(&self, _state: &mut FlowState<Review, Data>) -> Result<(), Self::Error> {
 //!         Ok(())
 //!     }
 //! }
@@ -168,9 +218,59 @@
 //! let _approved = state.transition::<Approved>();
 //! ```
 //!
+//!
+//! The current branch builder deliberately trades some runtime overhead for a simpler,
+//! honest API: registered branch arms are stored as boxed erased executors and matched
+//! linearly at runtime. That cost buys framework-owned branch wiring without forcing a
+//! type-level heterogeneous registry into the public API.
+//!
+//! ```compile_fail
+//! use orichalcum::typed::{Flow, FlowState, Next, StateNode, Transition};
+//!
+//! struct Draft;
+//! struct Review;
+//! struct Approved;
+//! struct Data;
+//! struct ReviewNode;
+//! struct Approve;
+//! #[derive(Clone, Debug, PartialEq, Eq)]
+//! enum Decision { Approve }
+//! enum Outcome { Approved(Flow<Approved, Data>) }
+//! #[derive(Debug)]
+//! struct Error;
+//!
+//! impl StateNode<Draft, Data> for ReviewNode {
+//!     type Route = Decision;
+//!     type Error = Error;
+//!
+//!     fn run(
+//!         &self,
+//!         _state: &mut FlowState<Draft, Data>,
+//!     ) -> Result<Next<Self::Route>, Self::Error> {
+//!         Ok(Next::Route(Decision::Approve))
+//!     }
+//! }
+//!
+//! impl Transition<Review, Data> for Approve {
+//!     type NextPhase = Approved;
+//!     type Error = Error;
+//!
+//!     fn advance(&self, _state: &mut FlowState<Review, Data>) -> Result<(), Self::Error> {
+//!         Ok(())
+//!     }
+//! }
+//!
+//! let decision = Flow::<Draft, _>::new(Data).step(&ReviewNode).unwrap();
+//! let _ = decision
+//!     .branch::<Outcome>()
+//!     .on(Decision::Approve, Approve, Outcome::Approved);
+//! ```
+//!
 //! The compile failures above are intentional: `Approve` and `ReviewNode` are only
-//! available once the workflow has entered `Review`, and raw phase relabeling is not
-//! part of the public typed API.
+//! available once the workflow has entered the right phase, raw phase relabeling is not
+//! part of the public typed API, and branch handlers must also use transitions legal for
+//! the current phase. Missing route handlers and missing finish handlers remain runtime
+//! validation errors, not compile-time proofs.
 //!
 //! These APIs are additive today. The existing dynamic workflow engine remains
 //! available for cases where runtime-defined state or graph structure is still the
@@ -178,6 +278,7 @@
 //!
 //! This module is the beginning of a stronger typed-workflow story, not the end of it.
 
+use std::convert::Infallible;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -256,6 +357,34 @@ pub trait Transition<P, D> {
 
     /// Validate and/or mutate state before Orichalcum advances to `NextPhase`.
     fn advance(&self, state: &mut FlowState<P, D>) -> Result<(), Self::Error>;
+}
+
+type BranchExecutor<P, D, O, E> = Box<dyn FnOnce(Flow<P, D>) -> Result<O, E> + 'static>;
+type FinishExecutor<P, D, O> = Box<dyn FnOnce(Flow<P, D>) -> O + 'static>;
+
+struct RegisteredArm<R, P, D, O, E> {
+    route: R,
+    execute: BranchExecutor<P, D, O, E>,
+}
+
+/// Error returned while building a typed branch resolver.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BranchBuildError<R> {
+    /// The same route was registered more than once on one branch builder.
+    DuplicateRoute(R),
+    /// Finish handling was configured more than once.
+    FinishAlreadyConfigured,
+}
+
+/// Error returned while executing a typed branch resolver.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BranchExecuteError<R, E> {
+    /// The produced route had no registered handler.
+    UnhandledRoute(R),
+    /// The branch resolved to `Next::Finish` but no finish handler was configured.
+    FinishNotHandled,
+    /// The selected transition failed.
+    Transition(E),
 }
 
 /// A typed, phase-aware flow wrapper.
@@ -357,7 +486,19 @@ impl<P, D, R> Branch<P, D, R> {
         (self.state, self.next)
     }
 
-    /// Resolve a branch by matching the typed route and deciding what flow comes next.
+    /// Start framework-owned typed branch resolution that will wrap the final result in `O`.
+    pub fn branch<O>(self) -> BranchBuilder<P, D, R, O> {
+        BranchBuilder {
+            flow: Flow::from_state(self.state),
+            next: self.next,
+            finish_handler: None,
+        }
+    }
+
+    /// Advanced escape hatch for custom branch resolution logic.
+    ///
+    /// Prefer `branch::<O>().on(...).finish()` for normal typed workflows so the
+    /// framework owns route-to-transition wiring.
     pub fn resolve<T, Error>(
         self,
         resolver: impl FnOnce(Flow<P, D>, Next<R>) -> Result<T, Error>,
@@ -366,9 +507,156 @@ impl<P, D, R> Branch<P, D, R> {
     }
 }
 
+/// Builder for framework-owned typed branch resolution before any route handlers are registered.
+pub struct BranchBuilder<P, D, R, O> {
+    flow: Flow<P, D>,
+    next: Next<R>,
+    finish_handler: Option<FinishExecutor<P, D, O>>,
+}
+
+/// Builder for framework-owned typed branch resolution after the transition error type is known.
+pub struct ConfiguredBranchBuilder<P, D, R, O, E> {
+    flow: Flow<P, D>,
+    next: Next<R>,
+    route_handlers: Vec<RegisteredArm<R, P, D, O, E>>,
+    finish_handler: Option<FinishExecutor<P, D, O>>,
+}
+
+impl<P, D, R, O> BranchBuilder<P, D, R, O>
+where
+    R: PartialEq + Clone + fmt::Debug,
+{
+    /// Register the first route handler and establish the branch error type `E`.
+    pub fn on<T, F>(
+        self,
+        route: R,
+        transition: T,
+        outcome_ctor: F,
+    ) -> Result<ConfiguredBranchBuilder<P, D, R, O, T::Error>, BranchBuildError<R>>
+    where
+        T: Transition<P, D> + 'static,
+        F: FnOnce(Flow<T::NextPhase, D>) -> O + 'static,
+    {
+        let BranchBuilder {
+            flow,
+            next,
+            finish_handler,
+        } = self;
+
+        let execute: BranchExecutor<P, D, O, T::Error> = Box::new(move |flow| {
+            flow.transition(transition).map(outcome_ctor)
+        });
+
+        Ok(ConfiguredBranchBuilder {
+            flow,
+            next,
+            route_handlers: vec![RegisteredArm { route, execute }],
+            finish_handler,
+        })
+    }
+
+    /// Register explicit finish handling before any route handlers exist.
+    pub fn on_finish<F>(mut self, outcome_ctor: F) -> Result<Self, BranchBuildError<R>>
+    where
+        F: FnOnce(Flow<P, D>) -> O + 'static,
+    {
+        if self.finish_handler.is_some() {
+            return Err(BranchBuildError::FinishAlreadyConfigured);
+        }
+
+        self.finish_handler = Some(Box::new(outcome_ctor));
+        Ok(self)
+    }
+
+    /// Execute a branch builder that has only finish handling configured.
+    pub fn finish(self) -> Result<O, BranchExecuteError<R, Infallible>> {
+        let BranchBuilder {
+            flow,
+            next,
+            finish_handler,
+        } = self;
+
+        match next {
+            Next::Route(route) => Err(BranchExecuteError::UnhandledRoute(route)),
+            Next::Finish => finish_handler
+                .map(|handler| handler(flow))
+                .ok_or(BranchExecuteError::FinishNotHandled),
+        }
+    }
+}
+
+impl<P, D, R, O, E> ConfiguredBranchBuilder<P, D, R, O, E>
+where
+    R: PartialEq + Clone + fmt::Debug,
+{
+    /// Register a route handler using a transition legal from the current phase.
+    pub fn on<T, F>(
+        mut self,
+        route: R,
+        transition: T,
+        outcome_ctor: F,
+    ) -> Result<Self, BranchBuildError<R>>
+    where
+        T: Transition<P, D, Error = E> + 'static,
+        F: FnOnce(Flow<T::NextPhase, D>) -> O + 'static,
+    {
+        if self.route_handlers.iter().any(|arm| arm.route == route) {
+            return Err(BranchBuildError::DuplicateRoute(route.clone()));
+        }
+
+        let execute: BranchExecutor<P, D, O, E> = Box::new(move |flow| {
+            flow.transition(transition).map(outcome_ctor)
+        });
+
+        self.route_handlers.push(RegisteredArm { route, execute });
+        Ok(self)
+    }
+
+    /// Register explicit handling for `Next::Finish`.
+    pub fn on_finish<F>(mut self, outcome_ctor: F) -> Result<Self, BranchBuildError<R>>
+    where
+        F: FnOnce(Flow<P, D>) -> O + 'static,
+    {
+        if self.finish_handler.is_some() {
+            return Err(BranchBuildError::FinishAlreadyConfigured);
+        }
+
+        self.finish_handler = Some(Box::new(outcome_ctor));
+        Ok(self)
+    }
+
+    /// Resolve the already-produced branch decision through framework-owned wiring.
+    pub fn finish(self) -> Result<O, BranchExecuteError<R, E>> {
+        let ConfiguredBranchBuilder {
+            flow,
+            next,
+            route_handlers,
+            finish_handler,
+        } = self;
+
+        match next {
+            Next::Route(route) => {
+                for arm in route_handlers {
+                    if arm.route == route {
+                        return (arm.execute)(flow).map_err(BranchExecuteError::Transition);
+                    }
+                }
+
+                Err(BranchExecuteError::UnhandledRoute(route))
+            }
+            Next::Finish => finish_handler
+                .map(|handler| handler(flow))
+                .ok_or(BranchExecuteError::FinishNotHandled),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Flow, FlowState, Next, StateNode, Transition};
+    use super::{
+        BranchBuildError, BranchExecuteError, Branch, Flow, FlowState, Next, StateNode,
+        Transition,
+    };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct Draft;
@@ -402,10 +690,7 @@ mod tests {
         type NextPhase = Review;
         type Error = ReviewError;
 
-        fn advance(
-            &self,
-            state: &mut FlowState<Draft, DocumentData>,
-        ) -> Result<(), Self::Error> {
+        fn advance(&self, state: &mut FlowState<Draft, DocumentData>) -> Result<(), Self::Error> {
             if state.data().content.trim().is_empty() {
                 return Err(ReviewError::EmptyDocument);
             }
@@ -471,13 +756,16 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
+    #[derive(Debug)]
     enum ReviewOutcome {
         Draft(Flow<Draft, DocumentData>),
         Approved(Flow<Approved, DocumentData>),
+        StillInReview(Flow<Review, DocumentData>),
     }
 
     #[test]
-    fn typed_flow_supports_phase_legal_transitions() {
+    fn typed_flow_supports_framework_owned_branching() {
         let review_flow = Flow::<Draft, _>::new(DocumentData {
             content: "Publishable draft".into(),
             reviewer_notes: vec!["looks good".into()],
@@ -486,21 +774,22 @@ mod tests {
         .transition(SubmitForReview)
         .expect("non-empty draft should enter review");
 
-        let decision = review_flow
+        let approved = review_flow
             .step(&ReviewNode)
-            .expect("review with notes should succeed");
-
-        let approved = decision
-            .resolve(|flow, next| match next {
-                Next::Route(ReviewDecision::Approve) => {
-                    flow.transition(ApproveTransition).map(ReviewOutcome::Approved)
-                }
-                Next::Route(ReviewDecision::RequestChanges) => flow
-                    .transition(RequestChangesTransition)
-                    .map(ReviewOutcome::Draft),
-                Next::Finish => unreachable!("review should choose a route"),
-            })
-            .expect("approve route should be legal");
+            .expect("review with notes should succeed")
+            .branch::<ReviewOutcome>()
+            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)
+            .expect("approve route should register")
+            .on(
+                ReviewDecision::RequestChanges,
+                RequestChangesTransition,
+                ReviewOutcome::Draft,
+            )
+            .expect("request changes route should register")
+            .on_finish(ReviewOutcome::StillInReview)
+            .expect("finish handler should register")
+            .finish()
+            .expect("approve route should execute");
 
         match approved {
             ReviewOutcome::Approved(flow) => {
@@ -508,41 +797,46 @@ mod tests {
                 assert_eq!(flow.data().content, "Publishable draft");
             }
             ReviewOutcome::Draft(_) => panic!("expected approval outcome"),
+            ReviewOutcome::StillInReview(_) => panic!("expected routed outcome"),
         }
     }
 
     #[test]
-    fn typed_flow_can_branch_back_to_prior_phase() {
-        let review_flow = Flow::<Draft, _>::new(DocumentData {
-            content: "Needs work".into(),
-            reviewer_notes: vec!["changes required".into()],
-            approved: false,
-        })
-        .transition(SubmitForReview)
-        .expect("draft should enter review");
+    fn duplicate_route_registration_is_rejected() {
+        let branch = Branch {
+            state: FlowState::<Review, _>::new(DocumentData {
+                content: "Publishable draft".into(),
+                reviewer_notes: vec!["looks good".into()],
+                approved: false,
+            }),
+            next: Next::Route(ReviewDecision::Approve),
+        };
 
-        let decision = review_flow
-            .step(&ReviewNode)
-            .expect("review with notes should succeed");
+        let duplicate = branch
+            .branch::<ReviewOutcome>()
+            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)
+            .expect("first registration should succeed")
+            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved);
 
-        let sent_back = decision
-            .resolve(|flow, next| match next {
-                Next::Route(ReviewDecision::Approve) => {
-                    flow.transition(ApproveTransition).map(ReviewOutcome::Approved)
-                }
-                Next::Route(ReviewDecision::RequestChanges) => flow
-                    .transition(RequestChangesTransition)
-                    .map(ReviewOutcome::Draft),
-                Next::Finish => unreachable!("review should choose a route"),
-            })
-            .expect("request-changes route should be legal");
+        assert!(matches!(
+            duplicate,
+            Err(BranchBuildError::DuplicateRoute(ReviewDecision::Approve))
+        ));
+    }
 
-        match sent_back {
-            ReviewOutcome::Draft(flow) => {
-                assert!(!flow.data().approved);
-                assert_eq!(flow.data().content, "Needs work");
-            }
-            ReviewOutcome::Approved(_) => panic!("expected draft outcome"),
-        }
+    #[test]
+    fn finish_without_handler_is_rejected() {
+        let branch = Branch {
+            state: FlowState::<Review, _>::new(DocumentData {
+                content: "Publishable draft".into(),
+                reviewer_notes: vec!["looks good".into()],
+                approved: false,
+            }),
+            next: Next::<ReviewDecision>::Finish,
+        };
+
+        let finish = branch.branch::<ReviewOutcome>().finish();
+
+        assert!(matches!(finish, Err(BranchExecuteError::FinishNotHandled)));
     }
 }

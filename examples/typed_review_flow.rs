@@ -1,4 +1,6 @@
-use orichalcum::typed::{Flow, FlowState, Next, StateNode, Transition};
+use orichalcum::typed::{
+    BranchBuildError, BranchExecuteError, Flow, FlowState, Next, StateNode, Transition,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Draft;
@@ -26,16 +28,39 @@ enum ReviewError {
     MissingNotes,
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
+enum ReviewWorkflowError {
+    Review(ReviewError),
+    Build(BranchBuildError<ReviewDecision>),
+    Execute(BranchExecuteError<ReviewDecision, ReviewError>),
+}
+
+impl From<ReviewError> for ReviewWorkflowError {
+    fn from(value: ReviewError) -> Self {
+        Self::Review(value)
+    }
+}
+
+impl From<BranchBuildError<ReviewDecision>> for ReviewWorkflowError {
+    fn from(value: BranchBuildError<ReviewDecision>) -> Self {
+        Self::Build(value)
+    }
+}
+
+impl From<BranchExecuteError<ReviewDecision, ReviewError>> for ReviewWorkflowError {
+    fn from(value: BranchExecuteError<ReviewDecision, ReviewError>) -> Self {
+        Self::Execute(value)
+    }
+}
+
 struct SubmitForReview;
 
 impl Transition<Draft, DocumentData> for SubmitForReview {
     type NextPhase = Review;
     type Error = ReviewError;
 
-    fn advance(
-        &self,
-        state: &mut FlowState<Draft, DocumentData>,
-    ) -> Result<(), Self::Error> {
+    fn advance(&self, state: &mut FlowState<Draft, DocumentData>) -> Result<(), Self::Error> {
         if state.data().content.trim().is_empty() {
             return Err(ReviewError::EmptyDocument);
         }
@@ -102,29 +127,30 @@ impl Transition<Review, DocumentData> for RequestChangesTransition {
 }
 
 enum ReviewOutcome {
-    Draft(Flow<Draft, DocumentData>),
     Approved(Flow<Approved, DocumentData>),
+    Draft(Flow<Draft, DocumentData>),
+    StillInReview(Flow<Review, DocumentData>),
 }
 
-fn main() -> Result<(), ReviewError> {
+fn main() -> Result<(), ReviewWorkflowError> {
     let review_flow = Flow::<Draft, _>::new(DocumentData {
-        content: "Typed workflows reject phase-incompatible transitions on the typed API path.".into(),
+        content: "Typed workflows now let Orichalcum own route-to-transition branch wiring.".into(),
         reviewer_notes: vec!["looks good".into()],
         approved: false,
     })
     .transition(SubmitForReview)?;
 
-    let decision = review_flow.step(&ReviewNode)?;
-
-    let outcome = decision.resolve(|flow, next| match next {
-        Next::Route(ReviewDecision::Approve) => flow
-            .transition(ApproveTransition)
-            .map(ReviewOutcome::Approved),
-        Next::Route(ReviewDecision::RequestChanges) => flow
-            .transition(RequestChangesTransition)
-            .map(ReviewOutcome::Draft),
-        Next::Finish => unreachable!("review node must choose a route"),
-    })?;
+    let outcome: ReviewOutcome = review_flow
+        .step(&ReviewNode)?
+        .branch::<ReviewOutcome>()
+        .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)?
+        .on(
+            ReviewDecision::RequestChanges,
+            RequestChangesTransition,
+            ReviewOutcome::Draft,
+        )?
+        .on_finish(ReviewOutcome::StillInReview)?
+        .finish()?;
 
     match outcome {
         ReviewOutcome::Approved(flow) => {
@@ -138,6 +164,14 @@ fn main() -> Result<(), ReviewError> {
         ReviewOutcome::Draft(flow) => {
             println!(
                 "Sent back to draft: {} | approved={} | notes={:?}",
+                flow.data().content,
+                flow.data().approved,
+                flow.data().reviewer_notes
+            );
+        }
+        ReviewOutcome::StillInReview(flow) => {
+            println!(
+                "Still in review: {} | approved={} | notes={:?}",
                 flow.data().content,
                 flow.data().approved,
                 flow.data().reviewer_notes
