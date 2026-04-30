@@ -1,6 +1,6 @@
 # Orichalcum: An Agent Orchestration Framework in Rust
 
-**License**: [MIT](LICENSE) | **Crates.io**: [v0.4.1](https://crates.io/crates/orichalcum) | **Docs**: [docs.rs](https://docs.rs/orichalcum)
+**License**: [MIT](LICENSE) | **Crates.io**: [v0.5.0](https://crates.io/crates/orichalcum) | **Docs**: [docs.rs](https://docs.rs/orichalcum)
 
 A brutally-safe, composable agent orchestration framework for building complex, multi-step workflows.
 
@@ -21,7 +21,7 @@ Orichalcum is a spiritual successor to Python's [PocketFlow](https://github.com/
 *   **Node**: The fundamental unit of work. A `Node` encapsulates a piece of logic with three steps: `prep` (prepare inputs), `exec` (execute the core logic), and `post` (process results and update state).
 *   **Flow**: A special `Node` that orchestrates a graph of other `Node`s. It manages the execution sequence based on the outputs of each `Node`.
 *   **Shared State**: A `HashMap` that is passed through the entire `Flow`. Nodes can read from this state to get context and write to it to pass results to subsequent nodes.
-*   **Semantic Layer (v0.4.1)**: Define structural contracts for your nodes using `Signature`. This allows for compile-time or runtime validation of your workflows.
+*   **Semantic Layer (v0.5.0)**: Define structural contracts for your nodes using `Signature`. This allows for compile-time or runtime validation of your workflows.
 
 ## Installation
 
@@ -29,16 +29,16 @@ Add Orichalcum to your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-orichalcum = "0.4.1"
+orichalcum = "0.5.0"
 
 # For LLM features (Ollama, Gemini, DeepSeek)
-# orichalcum = { version = "0.4.1", features = ["llm"] }
+# orichalcum = { version = "0.5.0", features = ["llm"] }
 
 # For Telemetry features (tracing, optimization registry)
-# orichalcum = { version = "0.4.1", features = ["telemetry"] }
+# orichalcum = { version = "0.5.0", features = ["telemetry"] }
 ```
 
-## Quick Start: Semantic LLM Nodes (v0.4.1)
+## Quick Start: Semantic LLM Nodes (v0.5.0)
 
 The most powerful way to use Orichalcum is via **Semantic Nodes**. These nodes have defined input/output contracts and are "sealed" for production stability.
 
@@ -71,6 +71,157 @@ async fn main() {
     println!("Sentiment: {}", state.get("sentiment").unwrap());
 }
 ```
+
+## Typed Workflows: Phase-Aware Branching (v0.5.0)
+
+Orichalcum also ships a typed workflow API for phase-aware orchestration. On this path, the framework owns legal branch execution while the caller owns the semantic meaning of each business outcome.
+
+```rust
+use orichalcum::typed::{
+    BranchBuildError, BranchExecuteError, Flow, FlowState, Next, StateNode, Transition,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Draft;
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Review;
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Approved;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReviewData {
+    document: String,
+    approved: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReviewDecision {
+    Approve,
+    RequestChanges,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ReviewError {
+    EmptyDocument,
+}
+
+#[derive(Debug)]
+enum ReviewWorkflowError {
+    Review(ReviewError),
+    Build(BranchBuildError<ReviewDecision>),
+    Execute(BranchExecuteError<ReviewDecision, ReviewError>),
+}
+
+impl From<ReviewError> for ReviewWorkflowError {
+    fn from(value: ReviewError) -> Self {
+        Self::Review(value)
+    }
+}
+
+impl From<BranchBuildError<ReviewDecision>> for ReviewWorkflowError {
+    fn from(value: BranchBuildError<ReviewDecision>) -> Self {
+        Self::Build(value)
+    }
+}
+
+impl From<BranchExecuteError<ReviewDecision, ReviewError>> for ReviewWorkflowError {
+    fn from(value: BranchExecuteError<ReviewDecision, ReviewError>) -> Self {
+        Self::Execute(value)
+    }
+}
+
+struct SubmitForReview;
+
+impl Transition<Draft, ReviewData> for SubmitForReview {
+    type NextPhase = Review;
+    type Error = ReviewError;
+
+    fn advance(&self, state: &mut FlowState<Draft, ReviewData>) -> Result<(), Self::Error> {
+        if state.data().document.trim().is_empty() {
+            return Err(ReviewError::EmptyDocument);
+        }
+
+        Ok(())
+    }
+}
+
+struct ReviewNode;
+
+impl StateNode<Review, ReviewData> for ReviewNode {
+    type Route = ReviewDecision;
+    type Error = ReviewError;
+
+    fn run(
+        &self,
+        state: &mut FlowState<Review, ReviewData>,
+    ) -> Result<Next<Self::Route>, Self::Error> {
+        state.data_mut().approved = true;
+        Ok(Next::Route(ReviewDecision::Approve))
+    }
+}
+
+struct Approve;
+
+impl Transition<Review, ReviewData> for Approve {
+    type NextPhase = Approved;
+    type Error = ReviewError;
+
+    fn advance(
+        &self,
+        _state: &mut FlowState<Review, ReviewData>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
+struct RequestChanges;
+
+impl Transition<Review, ReviewData> for RequestChanges {
+    type NextPhase = Draft;
+    type Error = ReviewError;
+
+    fn advance(
+        &self,
+        state: &mut FlowState<Review, ReviewData>,
+    ) -> Result<(), Self::Error> {
+        state.data_mut().approved = false;
+        Ok(())
+    }
+}
+
+enum ReviewOutcome {
+    Approved(Flow<Approved, ReviewData>),
+    Draft(Flow<Draft, ReviewData>),
+    StillInReview(Flow<Review, ReviewData>),
+}
+
+let review_flow = Flow::<Draft, _>::new(ReviewData {
+    document: "Ship it".into(),
+    approved: false,
+})
+.transition(SubmitForReview)?;
+
+let outcome: ReviewOutcome = review_flow
+    .step(&ReviewNode)?
+    .branch::<ReviewOutcome>()
+    .on(ReviewDecision::Approve, Approve, ReviewOutcome::Approved)?
+    .on(
+        ReviewDecision::RequestChanges,
+        RequestChanges,
+        ReviewOutcome::Draft,
+    )?
+    .on_finish(ReviewOutcome::StillInReview)?
+    .finish()?;
+
+match outcome {
+    ReviewOutcome::Approved(flow) => assert!(flow.data().approved),
+    ReviewOutcome::Draft(_) => unreachable!("example review always approves"),
+    ReviewOutcome::StillInReview(_) => unreachable!("review node should route"),
+}
+# Ok::<(), ReviewWorkflowError>(())
+```
+
+The typed API enforces phase legality for nodes, transitions, and registered branch handlers at compile time. It does not yet provide compile-time exhaustive route coverage; missing route handlers and missing finish handlers are surfaced as runtime branch execution errors.
 
 ## Traditional Example: A Simple Sync Flow
 
@@ -114,7 +265,7 @@ fn main() {
 ## Features
 
 *   **Semantic Layer**: Define I/O contracts with `Signature` for brutally-safe data flow.
-*   **Telemetry (v0.4.1)**: Built-in tracing for I/O, model names, and execution timestamps.
+*   **Telemetry (v0.5.0)**: Built-in tracing for I/O, model names, and execution timestamps.
 *   **Unified LLM Builders**: Fluent API for `Gemini`, `DeepSeek`, and `Ollama`.
 *   **Async & Parallel**: First-class support for `tokio` and parallel batch processing.
 *   **Nix Support**: Includes `flake.nix` for a reproducible development environment.

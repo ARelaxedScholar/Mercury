@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-29
+
+### Added
+- Typed workflow branch builder API with framework-owned route-to-transition execution via `Branch::branch::<O>()`, `.on(...)`, `.on_finish(...)`, and `.finish()`.
+- Explicit typed branch errors with `BranchBuildError<R>` and `BranchExecuteError<R, E>`.
+- Typed prelude/module exports for branch builder types (`BranchBuilder`, `ConfiguredBranchBuilder`) and branch error types.
+
+### Changed
+- Migrated the typed workflow example and typed integration tests to the framework-owned branch builder path instead of ad hoc `resolve(...)` closures.
+- Clarified typed workflow docs so compile-time guarantees cover phase legality for nodes, transitions, and branch handlers, while route coverage and finish coverage remain runtime-validated.
+
+### Notes
+- `Branch::resolve(...)` remains available as an advanced escape hatch; the builder path is now the canonical typed branching API.
+- The current branch builder intentionally uses boxed erased executors and linear runtime matching to keep heterogeneous branch arms simple in v1.
+
+
 ## [0.4.1] - 2026-04-21
 
 ### Fixed
