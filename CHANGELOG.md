@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-07-17
+## [0.5.0] - 2026-07-18
 
 ### Added
 - Repeatable contributor verification gate covering formatting, default and all-feature targets, doctests, strict Clippy, and crate packaging.
@@ -32,8 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Synchronized `Cargo.nix` with the current lockfile and package version.
-- Pinned Chrono to the Arrow 52-compatible `0.4.38` release so the `telemetry` feature builds successfully.
+- Removed the obsolete Arrow compatibility pin from Chrono after eliminating unused Arrow dependencies.
 - Corrected the semantic quick start and the exported `signature!` macro path for external callers.
+- Removed unused `json`, Arrow, and Parquet dependencies, eliminating stale dependency advisories and reducing the release surface.
+- Replaced inherited development-stage panic messages and comments with release-appropriate diagnostics and documentation.
 
 ### Notes
 - `Branch::resolve(...)` remains available as an advanced escape hatch; the builder path is now the canonical typed branching API.

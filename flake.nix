@@ -1,5 +1,5 @@
 {
-  description = "A flake.nix to allow easy development with the Orichalcum framework for Nix afficionados.";
+  description = "A flake.nix to allow easy development with the Orichalcum framework for Nix aficionados.";
   inputs = {
     cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.12";
     flake-utils.follows = "cargo2nix/flake-utils";

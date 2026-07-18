@@ -6,6 +6,7 @@ cargo fmt --all -- --check
 cargo test --locked --workspace --all-targets
 cargo test --locked --workspace --all-targets --all-features
 cargo test --locked --workspace --doc --all-features
+RUSTDOCFLAGS="-D warnings" cargo doc --locked --workspace --all-features --no-deps
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo package --locked --allow-dirty -p orichalcum-definition
 # Cargo cannot assemble dependent archives until their exact lockstep dependencies are

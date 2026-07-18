@@ -75,8 +75,8 @@ impl AsyncFlow {
             // Should always be possible if the Flow as created through the factory
             flow_logic.start = start;
         } else {
-            // This should never happen, but somehow it did
-            panic!("Error: Flow's logic is not of type FlowLogic");
+            // Construction through `AsyncFlow::new` establishes this invariant.
+            panic!("AsyncFlow invariant violated: inner node does not contain AsyncFlowLogic");
         }
     }
 
@@ -150,7 +150,8 @@ impl AsyncNodeLogic for AsyncFlowLogic {
         params: &HashMap<String, NodeValue>,
         shared: &HashMap<String, NodeValue>,
     ) -> NodeValue {
-        serde_json::to_value((params, shared)).expect("If this works, I'll be so lit")
+        serde_json::to_value((params, shared))
+            .expect("serializing async-flow parameters and shared state should succeed")
     }
 
     async fn exec(&self, input: NodeValue) -> NodeValue {
@@ -218,7 +219,7 @@ impl AsyncNodeLogic for AsyncFlowLogic {
             current = next_executable.clone();
         }
         serde_json::to_value((last_action.to_string(), shared))
-            .expect("Serializing string and HashMap should be doable")
+            .expect("serializing the final async-flow action and shared state should succeed")
     }
 
     async fn post(

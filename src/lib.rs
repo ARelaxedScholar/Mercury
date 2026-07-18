@@ -1,6 +1,6 @@
 //! # Orichalcum
 //!
-//! A brutally-safe, composable agent orchestration framework for building complex,
+//! A type-safe, composable agent orchestration framework for building complex,
 //! multi-step workflows in Rust.
 //!
 //! ## Features

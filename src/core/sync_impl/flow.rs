@@ -73,8 +73,8 @@ impl Flow {
             // Should always be possible if the Flow as created through the factory
             flow_logic.start = start;
         } else {
-            // This should never happen, but somehow it did
-            panic!("Error: Flow's logic is not of type FlowLogic");
+            // Construction through `Flow::new` establishes this invariant.
+            panic!("Flow invariant violated: inner node does not contain FlowLogic");
         }
     }
 
@@ -147,7 +147,8 @@ impl NodeLogic for FlowLogic {
         params: &HashMap<String, NodeValue>,
         shared: &HashMap<String, NodeValue>,
     ) -> NodeValue {
-        serde_json::to_value((params, shared)).expect("If this works, I'll be so lit")
+        serde_json::to_value((params, shared))
+            .expect("serializing flow parameters and shared state should succeed")
     }
 
     fn exec(&self, input: NodeValue) -> NodeValue {
@@ -186,11 +187,7 @@ impl NodeLogic for FlowLogic {
                     );
                 }
                 Some(Executable::Sealed(_sealed_node)) => {
-                    // This is a bit complex for sync flow to handle sealed nodes that might be async
-                    // For now, let's assume if it's in a Sync flow, it must be sync-wrapped or handled.
-                    // But our SealedNode::run is async.
-
-                    // Let's implement a block_on or restrict Sealed nodes in Sync flow for now.
+                    // Sealed nodes execute asynchronously and cannot run inside this sync adapter.
                     log::error!(
                         "Sync Flow encountered a SealedNode. Handling of SealedNodes in Sync Flows is currently restricted."
                     );
@@ -202,7 +199,7 @@ impl NodeLogic for FlowLogic {
             }
         }
         serde_json::to_value((last_action.to_string(), shared))
-            .expect("Serializing string and HashMap should be doable")
+            .expect("serializing the final flow action and shared state should succeed")
     }
     fn post(
         &self,

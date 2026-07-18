@@ -11,12 +11,13 @@ name = "orichalcum"
 version = "0.5.0"
 edition = "2024"
 rust-version = "1.85"
-description = "A brutally-safe, composable agent orchestration framework for building complex, multi-step workflows."
+description = "A type-safe, composable agent orchestration framework for building complex, multi-step workflows."
 license = "MIT"
 repository = "https://github.com/ARelaxedScholar/Orichalcum"
 readme = "README.md"
 keywords = ["llm", "agent", "workflow", "orchestration", "async"]
-categories = ["asynchronous", "development-tools", "api-bindings"]
+categories = ["asynchronous", "development-tools"]
+exclude = ["/Cargo.nix", "/flake.lock", "/flake.nix"]
 
 [package.metadata.cargo2nix]
 cargo2nixVersion = "0.12.0"
@@ -24,22 +25,20 @@ cargo2nixVersion = "0.12.0"
 [features]
 default = []
 llm = ["dep:reqwest", "dep:chrono"]
-telemetry = ["dep:parquet", "dep:arrow"]
+# Retained for compatibility; the in-memory telemetry API has no optional dependencies.
+telemetry = []
 experimental-graph = ["dep:orichalcum-macros"]
 
 [dependencies]
-json = "0.12.4"
 log = "0.4.28"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 thiserror = "2.0.17"
 uuid = { version = "1.16.0", features = ["v4"] }
-parquet = { version = "52.0.0", optional = true }
-arrow = { version = "52.0.0", optional = true }
 orichalcum-macros = { version = "=0.5.0", path = "crates/orichalcum-macros", optional = true }
 
 # Optional dependencies
-chrono = { version = "=0.4.38", features = ["serde"], optional = true }
+chrono = { version = "0.4.38", features = ["serde"], optional = true }
 reqwest = { version = "0.12.23", features = ["json"], optional = true }
 async-trait = "0.1.89"
 futures = "0.3.31"

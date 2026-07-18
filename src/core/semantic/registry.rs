@@ -16,8 +16,10 @@ pub struct OptimizationRecord {
     pub updated_at: u64,
 }
 
-/// Basic registry for storing and retrieving optimizations.
-/// This implementation is a placeholder for a full SQLite-based registry.
+/// In-memory registry for storing and retrieving optimization records.
+///
+/// Persistence is intentionally left to callers; a durable backend may be added in a
+/// future release.
 pub struct OptimizationRegistry {
     records: HashMap<String, OptimizationRecord>,
 }

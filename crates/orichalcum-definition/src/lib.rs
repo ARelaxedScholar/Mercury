@@ -123,7 +123,7 @@ impl MachineDefinition {
             .states
             .iter_mut()
             .find(|declaration| declaration.id == state)
-            .expect("prototype routes must follow their state declaration");
+            .expect("routes require the state to be declared first");
         declaration
             .routes
             .extend(routes.into_iter().map(Into::into));

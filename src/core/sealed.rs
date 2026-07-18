@@ -72,7 +72,7 @@ impl SealedNode {
         Box::pin(async move {
             // We need to capture the results for telemetry
             // This is easier if we call the phases directly or if run() returns them.
-            // For now, we'll let the inner run() do its work, and we'll record telemetry here
+            // The inner node performs the work; this wrapper records its telemetry.
             // but we need the inputs/outputs.
 
             // Re-implementing the run loop here to capture I/O

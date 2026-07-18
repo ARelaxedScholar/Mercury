@@ -2,15 +2,9 @@ use crate::core::sync_impl::NodeValue;
 use crate::core::sync_impl::node::{Node, NodeLogic};
 use std::collections::HashMap;
 
-/// A BatchFlow is a `Node` (so orchestrable) which runs
-/// a `Flow` many times with different params.
-/// Therefore, a `BatchFlow` must deref the `Node`
-/// But it's actual exectution logic should be implemented
-/// on a struct which carries the `Flow` to batch.
+/// An orchestratable node that runs a nested flow repeatedly with different parameters.
 ///
-/// Damn, I might be a prophet. But yup, after reconsideration
-/// everything up there holds true, except the `BatchFlowLogic` holds a `Node` (this was the most
-/// straightforward way I could think to enable BatchFlow nesting)
+/// The nested flow is stored as a [`Node`] so batch flows can be composed and nested.
 pub struct BatchFlow(Node);
 
 /// The Derefs are needed to be able to access the inside `Node` of the `Flow` easily
@@ -37,9 +31,7 @@ where
         + Sync
         + 'static,
 {
-    // We have node so that we may nest BatchFlow'self
-    // Technically, you could BatchFlow a single node as well?
-    // But it's not as helpful
+    // Storing a node permits both ordinary flows and nested batch flows.
     flow: Node,
     prep_fn: F,
 }
@@ -59,15 +51,14 @@ where
     ) -> NodeValue {
         // Call the user-defined closure
         serde_json::to_value((shared, (self.prep_fn)(params, shared)))
-            .expect("Serialization of shared to thing should work")
+            .expect("serializing batch-flow shared state and parameters should succeed")
     }
 
     fn exec(&self, input: NodeValue) -> NodeValue {
         if let Some(array) = input.as_array() {
             if array.len() != 2 {
-                panic!("Well shit");
+                panic!("BatchFlow input must contain shared state and batch parameters");
             }
-            // Ok, we covered our bases now
             let mut shared: HashMap<String, NodeValue> =
                 serde_json::from_value(array[0].clone()).unwrap_or_default();
             let params_array: Vec<HashMap<String, NodeValue>> =
@@ -80,9 +71,9 @@ where
                 flow.run(&mut shared);
             });
 
-            serde_json::to_value(shared).expect("Serialization of shared dictionary should work!")
+            serde_json::to_value(shared).expect("serializing BatchFlow shared state should succeed")
         } else {
-            panic!("Serialization failure occured");
+            panic!("BatchFlow input must be a two-element array");
         }
     }
 
@@ -96,13 +87,10 @@ where
             *shared = shared_post
         } else {
             log::error!(
-                "A deserialization error occured in BatchFlow, will proceed with non-updated shared"
+                "BatchFlow could not deserialize its result; shared state remains unchanged"
             );
         }
-        // In PocketFlow they return the exec_res, but I think it's cleaner like this. If
-        // you're not happy with this, you can also just implement your custom
-        // BatchFlowLogic
-        // (This allows basic chaining)
+        // Returning the default route permits ordinary flow chaining.
         Some("default".into())
     }
 

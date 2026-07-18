@@ -2,7 +2,7 @@
 
 **License**: [MIT](LICENSE) | **Crates.io**: [v0.5.0](https://crates.io/crates/orichalcum) | **Docs**: [docs.rs](https://docs.rs/orichalcum)
 
-A brutally-safe, composable agent orchestration framework for building complex, multi-step workflows.
+A type-safe, composable agent orchestration framework for building complex, multi-step workflows.
 
 ## Status
 
@@ -10,11 +10,11 @@ A brutally-safe, composable agent orchestration framework for building complex, 
 
 ## What is Orichalcum?
 
-You've looked at LLM agent frameworks and thought, "This is neat. But is it *memory-safe*?"
+Orichalcum brings Rust's ownership model and type system to agent orchestration. It is
+designed for workflows where explicit state, composable operations, and compile-time
+feedback matter as much as runtime flexibility.
 
-You crave the sweet agony of the borrow checker. You yearn for the moral superiority that comes with writing everything in Rust. You, my friend, are a true masochist. And this is the LLM framework for you.
-
-Orichalcum is a spiritual successor to Python's [PocketFlow](https://github.com/r-portas/PocketFlow), inheriting its philosophy of extreme composability. It allows you to define complex workflows (or "Flows") by chaining together simple, reusable components ("Nodes"). Each Node is a self-contained unit of work that can read from and write to a shared state, making decisions about what Node to execute next.
+Orichalcum is a spiritual successor to Python's [PocketFlow](https://github.com/The-Pocket/PocketFlow), inheriting its philosophy of extreme composability. It allows you to define complex workflows (or "Flows") by chaining together simple, reusable components ("Nodes"). Each Node is a self-contained unit of work that can read from and write to a shared state, making decisions about what Node to execute next.
 
 ### Core Concepts
 
@@ -33,9 +33,6 @@ orichalcum = "0.5.0"
 
 # For LLM features (Ollama, Gemini, DeepSeek)
 # orichalcum = { version = "0.5.0", features = ["llm"] }
-
-# For Telemetry features (tracing, optimization registry)
-# orichalcum = { version = "0.5.0", features = ["telemetry"] }
 
 # For the experimental compiler-verified graph API
 # orichalcum = { version = "0.5.0", features = ["experimental-graph"] }
@@ -75,7 +72,8 @@ assert_eq!(approved.into_data(), ["approved"]);
 
 ## Quick Start: Semantic LLM Nodes (v0.5.0)
 
-The most powerful way to use Orichalcum is via **Semantic Nodes**. These nodes have defined input/output contracts and are "sealed" for production stability.
+Semantic nodes carry explicit input/output contracts and can be sealed against further
+configuration changes before execution.
 
 ```rust
 use orichalcum::prelude::*;
@@ -304,7 +302,7 @@ fn main() {
 
 ## Features
 
-*   **Semantic Layer**: Define I/O contracts with `Signature` for brutally-safe data flow.
+*   **Semantic Layer**: Define I/O contracts with `Signature` for contract-aware data flow.
 *   **Telemetry (v0.5.0)**: Built-in tracing for I/O, model names, and execution timestamps.
 *   **Unified LLM Builders**: Fluent API for `Gemini`, `DeepSeek`, and `Ollama`.
 *   **Async & Parallel**: First-class support for `tokio` and parallel batch processing.

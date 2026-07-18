@@ -34,9 +34,13 @@ upload. Confirm that `CHANGELOG.md` has the intended version and release date, t
 
 ```bash
 nix develop -c ./scripts/verify.sh
+nix run nixpkgs#cargo-audit -- audit
+nix run nixpkgs#typos -- --exclude Cargo.nix --exclude Cargo.lock --exclude target .
+nix run nixpkgs#lychee -- --no-progress README.md CONTRIBUTING.md CHANGELOG.md STATE_MACHINE_ROADMAP.md docs/*.md crates/*/README.md
 nix flake check
 nix build
 git status --short
+git push origin HEAD
 ```
 
 The final command must produce no output. Publish and verify each dependency before
@@ -59,7 +63,6 @@ Create and push the release tag from the exact published commit:
 
 ```bash
 git tag -a v0.5.0 -m "Release 0.5.0"
-git push origin HEAD
 git push origin v0.5.0
 ```
 

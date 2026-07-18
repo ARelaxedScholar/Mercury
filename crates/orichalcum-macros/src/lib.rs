@@ -1,7 +1,7 @@
 //! Experimental compile-time front end for Orichalcum graph definitions.
 //!
 //! Most users should enable Orichalcum's `experimental-graph` feature and import
-//! [`experimental_state_machine`] from the `orichalcum` crate. This implementation
+//! [`experimental_state_machine!`] from the `orichalcum` crate. This implementation
 //! crate is published so Cargo can resolve the procedural macro transitively; its
 //! syntax and generated API remain unstable throughout Orichalcum's 0.x releases.
 
