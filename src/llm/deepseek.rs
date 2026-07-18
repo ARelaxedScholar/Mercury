@@ -211,11 +211,22 @@ where
         let model_to_use = self.model.unwrap_or_else(|| config.default_model.clone());
 
         // Implicit validation
-        let mut cache = self.client.model_cache.deepseek.read().unwrap().clone();
+        let mut cache = self
+            .client
+            .model_cache
+            .deepseek
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         if cache.is_none() {
             if let Ok(models) = self.client.deepseek_list_models().await {
                 let names: Vec<String> = models.into_iter().map(|m| m.id).collect();
-                *self.client.model_cache.deepseek.write().unwrap() = Some(names.clone());
+                *self
+                    .client
+                    .model_cache
+                    .deepseek
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(names.clone());
                 cache = Some(names);
             }
         }
