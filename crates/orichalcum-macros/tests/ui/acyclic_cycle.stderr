@@ -1,0 +1,5 @@
+error: [SM103] policy `acyclic` forbids a declared cycle
+ --> tests/ui/acyclic_cycle.rs:6:12
+  |
+6 |     active A;
+  |            ^

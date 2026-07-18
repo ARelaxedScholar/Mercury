@@ -1,0 +1,17 @@
+error[E0599]: no method named `approve` found for struct `Execution<Draft, ()>` in the current scope
+  --> tests/ui/wrong_phase_transition.rs:15:27
+   |
+3  | / experimental_state_machine! {
+4  | |     machine wrong_phase;
+5  | |     initial Draft;
+6  | |     active Draft;
+...  |
+10 | |     transition approve: Review -> Approved;
+11 | | }
+   | |_- method `approve` not found for this struct
+...
+15 |       let _approved = draft.approve(|_| Ok::<(), ()>(()));
+   |                             ^^^^^^^ method not found in `Execution<Draft, ()>`
+   |
+   = note: the method was found for
+           - `Execution<Review, D>`

@@ -1,0 +1,5 @@
+error: [SM104] transition `tick` participates in an unacknowledged cycle
+ --> tests/ui/unacknowledged_cycle.rs:7:16
+  |
+7 |     transition tick: Running -> Running;
+  |                ^^^^

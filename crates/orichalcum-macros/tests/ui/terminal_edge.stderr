@@ -1,0 +1,5 @@
+error: [SM011] terminal state `Done` cannot have outgoing transition `reopen`
+ --> tests/ui/terminal_edge.rs:8:16
+  |
+8 |     transition reopen: Done -> Reopened;
+  |                ^^^^^^

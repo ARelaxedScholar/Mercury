@@ -1,0 +1,5 @@
+error: [SM015] state `Review` has no handler for route `RequestChanges`
+ --> tests/ui/missing_route.rs:6:12
+  |
+6 |     active Review;
+  |            ^^^^^^

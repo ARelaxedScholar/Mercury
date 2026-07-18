@@ -359,7 +359,74 @@ pub trait Transition<P, D> {
     fn advance(&self, state: &mut FlowState<P, D>) -> Result<(), Self::Error>;
 }
 
-type BranchExecutor<P, D, O, E> = Box<dyn FnOnce(Flow<P, D>) -> Result<O, E> + 'static>;
+/// The kind of typed operation that returned an ordinary execution failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationKind {
+    /// A phase-local [`StateNode`] failed.
+    Node,
+    /// A phase-local [`Transition`] failed before its phase change committed.
+    Transition,
+}
+
+/// An ordinary typed execution failure that returns ownership of the source-phase flow.
+///
+/// Mutations made by the failed operation remain visible in `flow`. Orichalcum does not
+/// automatically roll back domain data.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExecutionFailure<P, D, E> {
+    flow: Flow<P, D>,
+    error: E,
+    operation: OperationKind,
+}
+
+/// A recoverable failure returned by a phase-local node.
+pub type NodeFailure<P, D, E> = ExecutionFailure<P, D, E>;
+
+/// A recoverable failure returned before a transition commits its destination phase.
+pub type TransitionFailure<P, D, E> = ExecutionFailure<P, D, E>;
+
+impl<P, D, E> ExecutionFailure<P, D, E> {
+    fn new(flow: Flow<P, D>, error: E, operation: OperationKind) -> Self {
+        Self {
+            flow,
+            error,
+            operation,
+        }
+    }
+
+    /// Identify whether a node or transition failed.
+    pub fn operation(&self) -> OperationKind {
+        self.operation
+    }
+
+    /// Borrow the underlying user error.
+    pub fn error(&self) -> &E {
+        &self.error
+    }
+
+    /// Borrow the recovered source-phase flow.
+    pub fn flow(&self) -> &Flow<P, D> {
+        &self.flow
+    }
+
+    /// Mutably borrow the recovered source-phase flow.
+    pub fn flow_mut(&mut self) -> &mut Flow<P, D> {
+        &mut self.flow
+    }
+
+    /// Consume the failure into its recovered source-phase flow and user error.
+    pub fn into_parts(self) -> (Flow<P, D>, E) {
+        (self.flow, self.error)
+    }
+
+    /// Consume the failure and discard the recovered flow, preserving legacy behavior.
+    pub fn into_error(self) -> E {
+        self.error
+    }
+}
+
+type BranchExecutor<P, D, O, E> =
+    Box<dyn FnOnce(Flow<P, D>) -> Result<O, TransitionFailure<P, D, E>> + 'static>;
 type FinishExecutor<P, D, O> = Box<dyn FnOnce(Flow<P, D>) -> O + 'static>;
 
 struct RegisteredArm<R, P, D, O, E> {
@@ -376,6 +443,34 @@ pub enum BranchBuildError<R> {
     FinishAlreadyConfigured,
 }
 
+/// A branch configuration failure that returns the execution-bearing builder.
+#[derive(Debug)]
+pub struct BranchBuildFailure<R, B> {
+    error: BranchBuildError<R>,
+    builder: B,
+}
+
+impl<R, B> BranchBuildFailure<R, B> {
+    fn new(error: BranchBuildError<R>, builder: B) -> Self {
+        Self { error, builder }
+    }
+
+    /// Borrow the configuration error.
+    pub fn error(&self) -> &BranchBuildError<R> {
+        &self.error
+    }
+
+    /// Consume the failure into the preserved builder and configuration error.
+    pub fn into_parts(self) -> (B, BranchBuildError<R>) {
+        (self.builder, self.error)
+    }
+
+    /// Consume the failure and recover the builder.
+    pub fn into_builder(self) -> B {
+        self.builder
+    }
+}
+
 /// Error returned while executing a typed branch resolver.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BranchExecuteError<R, E> {
@@ -385,6 +480,51 @@ pub enum BranchExecuteError<R, E> {
     FinishNotHandled,
     /// The selected transition failed.
     Transition(E),
+}
+
+/// A branch execution failure that preserves the source-phase flow.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BranchFailure<P, D, R, E> {
+    /// The produced route had no registered handler.
+    UnhandledRoute {
+        /// The recovered source-phase flow.
+        flow: Flow<P, D>,
+        /// The route that could not be dispatched.
+        route: R,
+    },
+    /// `Next::Finish` was produced without a configured finish handler.
+    FinishNotHandled {
+        /// The recovered source-phase flow.
+        flow: Flow<P, D>,
+    },
+    /// The selected transition failed before committing its destination phase.
+    Transition(TransitionFailure<P, D, E>),
+}
+
+impl<P, D, R, E> BranchFailure<P, D, R, E> {
+    /// Borrow the recovered source-phase flow.
+    pub fn flow(&self) -> &Flow<P, D> {
+        match self {
+            Self::UnhandledRoute { flow, .. } | Self::FinishNotHandled { flow } => flow,
+            Self::Transition(failure) => failure.flow(),
+        }
+    }
+
+    /// Consume the failure and return the recovered source-phase flow.
+    pub fn into_flow(self) -> Flow<P, D> {
+        match self {
+            Self::UnhandledRoute { flow, .. } | Self::FinishNotHandled { flow } => flow,
+            Self::Transition(failure) => failure.into_parts().0,
+        }
+    }
+
+    fn into_legacy(self) -> BranchExecuteError<R, E> {
+        match self {
+            Self::UnhandledRoute { route, .. } => BranchExecuteError::UnhandledRoute(route),
+            Self::FinishNotHandled { .. } => BranchExecuteError::FinishNotHandled,
+            Self::Transition(failure) => BranchExecuteError::Transition(failure.into_error()),
+        }
+    }
 }
 
 /// A typed, phase-aware flow wrapper.
@@ -437,24 +577,65 @@ impl<P, D> Flow<P, D> {
     }
 
     /// Run a typed node in the current phase, producing a typed branch decision.
-    pub fn step<N>(mut self, node: &N) -> Result<Branch<P, D, N::Route>, N::Error>
+    pub fn step<N>(self, node: &N) -> Result<Branch<P, D, N::Route>, N::Error>
     where
         N: StateNode<P, D>,
     {
-        let next = node.run(&mut self.state)?;
-        Ok(Branch {
-            state: self.state,
-            next,
-        })
+        self.step_recovering(node)
+            .map_err(ExecutionFailure::into_error)
+    }
+
+    /// Run a typed node and return the source-phase flow if the node fails.
+    ///
+    /// Domain-data mutations performed before `Err` remain visible in the returned
+    /// [`NodeFailure`].
+    #[allow(clippy::type_complexity)]
+    pub fn step_recovering<N>(
+        mut self,
+        node: &N,
+    ) -> Result<Branch<P, D, N::Route>, NodeFailure<P, D, N::Error>>
+    where
+        N: StateNode<P, D>,
+    {
+        match node.run(&mut self.state) {
+            Ok(next) => Ok(Branch {
+                state: self.state,
+                next,
+            }),
+            Err(error) => Err(ExecutionFailure::new(self, error, OperationKind::Node)),
+        }
     }
 
     /// Apply a legal phase transition from the current phase.
-    pub fn transition<T>(mut self, transition: T) -> Result<Flow<T::NextPhase, D>, T::Error>
+    pub fn transition<T>(self, transition: T) -> Result<Flow<T::NextPhase, D>, T::Error>
     where
         T: Transition<P, D>,
     {
-        transition.advance(&mut self.state)?;
-        Ok(Flow::from_state(self.state.transition()))
+        self.transition_recovering(transition)
+            .map_err(ExecutionFailure::into_error)
+    }
+
+    /// Apply a legal transition and return the source-phase flow if its effect fails.
+    ///
+    /// The destination phase is constructed only after `advance` succeeds. Domain-data
+    /// mutations performed before `Err` remain visible in the returned
+    /// [`TransitionFailure`].
+    #[allow(clippy::type_complexity)]
+    pub fn transition_recovering<T>(
+        mut self,
+        transition: T,
+    ) -> Result<Flow<T::NextPhase, D>, TransitionFailure<P, D, T::Error>>
+    where
+        T: Transition<P, D>,
+    {
+        match transition.advance(&mut self.state) {
+            Ok(()) => Ok(Flow::from_state(self.state.transition())),
+            Err(error) => Err(ExecutionFailure::new(
+                self,
+                error,
+                OperationKind::Transition,
+            )),
+        }
     }
 }
 
@@ -527,6 +708,7 @@ where
     R: PartialEq + Clone + fmt::Debug,
 {
     /// Register the first route handler and establish the branch error type `E`.
+    #[allow(clippy::type_complexity)]
     pub fn on<T, F>(
         self,
         route: R,
@@ -543,9 +725,8 @@ where
             finish_handler,
         } = self;
 
-        let execute: BranchExecutor<P, D, O, T::Error> = Box::new(move |flow| {
-            flow.transition(transition).map(outcome_ctor)
-        });
+        let execute: BranchExecutor<P, D, O, T::Error> =
+            Box::new(move |flow| flow.transition_recovering(transition).map(outcome_ctor));
 
         Ok(ConfiguredBranchBuilder {
             flow,
@@ -568,8 +749,32 @@ where
         Ok(self)
     }
 
+    /// Register finish handling and preserve the builder on duplicate configuration.
+    pub fn on_finish_recovering<F>(
+        mut self,
+        outcome_ctor: F,
+    ) -> Result<Self, BranchBuildFailure<R, Self>>
+    where
+        F: FnOnce(Flow<P, D>) -> O + 'static,
+    {
+        if self.finish_handler.is_some() {
+            return Err(BranchBuildFailure::new(
+                BranchBuildError::FinishAlreadyConfigured,
+                self,
+            ));
+        }
+
+        self.finish_handler = Some(Box::new(outcome_ctor));
+        Ok(self)
+    }
+
     /// Execute a branch builder that has only finish handling configured.
     pub fn finish(self) -> Result<O, BranchExecuteError<R, Infallible>> {
+        self.finish_recovering().map_err(BranchFailure::into_legacy)
+    }
+
+    /// Execute a finish-only branch builder and preserve the flow on failure.
+    pub fn finish_recovering(self) -> Result<O, BranchFailure<P, D, R, Infallible>> {
         let BranchBuilder {
             flow,
             next,
@@ -577,10 +782,11 @@ where
         } = self;
 
         match next {
-            Next::Route(route) => Err(BranchExecuteError::UnhandledRoute(route)),
-            Next::Finish => finish_handler
-                .map(|handler| handler(flow))
-                .ok_or(BranchExecuteError::FinishNotHandled),
+            Next::Route(route) => Err(BranchFailure::UnhandledRoute { flow, route }),
+            Next::Finish => match finish_handler {
+                Some(handler) => Ok(handler(flow)),
+                None => Err(BranchFailure::FinishNotHandled { flow }),
+            },
         }
     }
 }
@@ -604,9 +810,33 @@ where
             return Err(BranchBuildError::DuplicateRoute(route.clone()));
         }
 
-        let execute: BranchExecutor<P, D, O, E> = Box::new(move |flow| {
-            flow.transition(transition).map(outcome_ctor)
-        });
+        let execute: BranchExecutor<P, D, O, E> =
+            Box::new(move |flow| flow.transition_recovering(transition).map(outcome_ctor));
+
+        self.route_handlers.push(RegisteredArm { route, execute });
+        Ok(self)
+    }
+
+    /// Register a route handler and preserve the builder if the route is duplicated.
+    pub fn on_recovering<T, F>(
+        mut self,
+        route: R,
+        transition: T,
+        outcome_ctor: F,
+    ) -> Result<Self, BranchBuildFailure<R, Self>>
+    where
+        T: Transition<P, D, Error = E> + 'static,
+        F: FnOnce(Flow<T::NextPhase, D>) -> O + 'static,
+    {
+        if self.route_handlers.iter().any(|arm| arm.route == route) {
+            return Err(BranchBuildFailure::new(
+                BranchBuildError::DuplicateRoute(route),
+                self,
+            ));
+        }
+
+        let execute: BranchExecutor<P, D, O, E> =
+            Box::new(move |flow| flow.transition_recovering(transition).map(outcome_ctor));
 
         self.route_handlers.push(RegisteredArm { route, execute });
         Ok(self)
@@ -625,8 +855,32 @@ where
         Ok(self)
     }
 
+    /// Register finish handling and preserve the builder on duplicate configuration.
+    pub fn on_finish_recovering<F>(
+        mut self,
+        outcome_ctor: F,
+    ) -> Result<Self, BranchBuildFailure<R, Self>>
+    where
+        F: FnOnce(Flow<P, D>) -> O + 'static,
+    {
+        if self.finish_handler.is_some() {
+            return Err(BranchBuildFailure::new(
+                BranchBuildError::FinishAlreadyConfigured,
+                self,
+            ));
+        }
+
+        self.finish_handler = Some(Box::new(outcome_ctor));
+        Ok(self)
+    }
+
     /// Resolve the already-produced branch decision through framework-owned wiring.
     pub fn finish(self) -> Result<O, BranchExecuteError<R, E>> {
+        self.finish_recovering().map_err(BranchFailure::into_legacy)
+    }
+
+    /// Resolve the branch decision and preserve the source-phase flow on failure.
+    pub fn finish_recovering(self) -> Result<O, BranchFailure<P, D, R, E>> {
         let ConfiguredBranchBuilder {
             flow,
             next,
@@ -638,15 +892,16 @@ where
             Next::Route(route) => {
                 for arm in route_handlers {
                     if arm.route == route {
-                        return (arm.execute)(flow).map_err(BranchExecuteError::Transition);
+                        return (arm.execute)(flow).map_err(BranchFailure::Transition);
                     }
                 }
 
-                Err(BranchExecuteError::UnhandledRoute(route))
+                Err(BranchFailure::UnhandledRoute { flow, route })
             }
-            Next::Finish => finish_handler
-                .map(|handler| handler(flow))
-                .ok_or(BranchExecuteError::FinishNotHandled),
+            Next::Finish => match finish_handler {
+                Some(handler) => Ok(handler(flow)),
+                None => Err(BranchFailure::FinishNotHandled { flow }),
+            },
         }
     }
 }
@@ -654,8 +909,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        BranchBuildError, BranchExecuteError, Branch, Flow, FlowState, Next, StateNode,
-        Transition,
+        Branch, BranchBuildError, BranchExecuteError, Flow, FlowState, Next, StateNode, Transition,
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -733,10 +987,7 @@ mod tests {
         type NextPhase = Approved;
         type Error = ReviewError;
 
-        fn advance(
-            &self,
-            _state: &mut FlowState<Review, DocumentData>,
-        ) -> Result<(), Self::Error> {
+        fn advance(&self, _state: &mut FlowState<Review, DocumentData>) -> Result<(), Self::Error> {
             Ok(())
         }
     }
@@ -747,10 +998,7 @@ mod tests {
         type NextPhase = Draft;
         type Error = ReviewError;
 
-        fn advance(
-            &self,
-            state: &mut FlowState<Review, DocumentData>,
-        ) -> Result<(), Self::Error> {
+        fn advance(&self, state: &mut FlowState<Review, DocumentData>) -> Result<(), Self::Error> {
             state.data_mut().approved = false;
             Ok(())
         }
@@ -778,7 +1026,11 @@ mod tests {
             .step(&ReviewNode)
             .expect("review with notes should succeed")
             .branch::<ReviewOutcome>()
-            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)
+            .on(
+                ReviewDecision::Approve,
+                ApproveTransition,
+                ReviewOutcome::Approved,
+            )
             .expect("approve route should register")
             .on(
                 ReviewDecision::RequestChanges,
@@ -814,9 +1066,17 @@ mod tests {
 
         let duplicate = branch
             .branch::<ReviewOutcome>()
-            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)
+            .on(
+                ReviewDecision::Approve,
+                ApproveTransition,
+                ReviewOutcome::Approved,
+            )
             .expect("first registration should succeed")
-            .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved);
+            .on(
+                ReviewDecision::Approve,
+                ApproveTransition,
+                ReviewOutcome::Approved,
+            );
 
         assert!(matches!(
             duplicate,

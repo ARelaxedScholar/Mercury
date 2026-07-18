@@ -75,8 +75,9 @@ pub use core::semantic::signature::{Field, Signature};
 pub use core::semantic::{Promptable, Sealable};
 pub use core::telemetry::{MemoryTelemetry, Telemetry, TraceEntry};
 pub use core::typed::{
-    Branch, BranchBuildError, BranchBuilder, BranchExecuteError, ConfiguredBranchBuilder,
-    FlowState, Next, StateNode, Transition,
+    Branch, BranchBuildError, BranchBuildFailure, BranchBuilder, BranchExecuteError, BranchFailure,
+    ConfiguredBranchBuilder, ExecutionFailure, FlowState, Next, NodeFailure, OperationKind,
+    StateNode, Transition, TransitionFailure,
 };
 pub use core::validation::{KeyAvailability, ValidationIssue, ValidationResult};
 
@@ -95,13 +96,13 @@ pub use core::async_impl::async_parallel_batch_node::{
     AsyncParallelBatchLogic, new_async_parallel_batch_node,
 };
 
-
 /// Typed workflow API organized under its own module so the existing dynamic `Flow`
 /// can remain stable while the typed model matures.
 pub mod typed {
     pub use crate::core::typed::{
-        Branch, BranchBuildError, BranchBuilder, BranchExecuteError, ConfiguredBranchBuilder,
-        Flow, FlowState, Next, StateNode, Transition,
+        Branch, BranchBuildError, BranchBuildFailure, BranchBuilder, BranchExecuteError,
+        BranchFailure, ConfiguredBranchBuilder, ExecutionFailure, Flow, FlowState, Next,
+        NodeFailure, OperationKind, StateNode, Transition, TransitionFailure,
     };
 }
 // ============================================================================
@@ -186,11 +187,12 @@ pub mod async_prelude {
 
 /// Prelude for typed, phase-aware workflows.
 pub mod typed_prelude {
-    pub use super::{
-        Branch, BranchBuildError, BranchBuilder, BranchExecuteError, ConfiguredBranchBuilder,
-        FlowState, Next, StateNode, Transition,
-    };
     pub use super::typed::Flow;
+    pub use super::{
+        Branch, BranchBuildError, BranchBuildFailure, BranchBuilder, BranchExecuteError,
+        BranchFailure, ConfiguredBranchBuilder, ExecutionFailure, FlowState, Next, NodeFailure,
+        OperationKind, StateNode, Transition, TransitionFailure,
+    };
 }
 
 // ============================================================================
@@ -213,6 +215,12 @@ pub use llm::{
 
 pub use serde_json::Value as JsonValue;
 pub use std::collections::HashMap;
+
+/// Define and validate a complete state-machine graph during macro expansion.
+///
+/// This API is experimental and may change between Orichalcum 0.x releases.
+#[cfg(feature = "experimental-graph")]
+pub use orichalcum_macros::experimental_state_machine;
 
 // ============================================================================
 // Library Metadata

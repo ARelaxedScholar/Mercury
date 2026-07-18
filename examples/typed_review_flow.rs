@@ -103,10 +103,7 @@ impl Transition<Review, DocumentData> for ApproveTransition {
     type NextPhase = Approved;
     type Error = ReviewError;
 
-    fn advance(
-        &self,
-        _state: &mut FlowState<Review, DocumentData>,
-    ) -> Result<(), Self::Error> {
+    fn advance(&self, _state: &mut FlowState<Review, DocumentData>) -> Result<(), Self::Error> {
         Ok(())
     }
 }
@@ -117,10 +114,7 @@ impl Transition<Review, DocumentData> for RequestChangesTransition {
     type NextPhase = Draft;
     type Error = ReviewError;
 
-    fn advance(
-        &self,
-        state: &mut FlowState<Review, DocumentData>,
-    ) -> Result<(), Self::Error> {
+    fn advance(&self, state: &mut FlowState<Review, DocumentData>) -> Result<(), Self::Error> {
         state.data_mut().approved = false;
         Ok(())
     }
@@ -143,7 +137,11 @@ fn main() -> Result<(), ReviewWorkflowError> {
     let outcome: ReviewOutcome = review_flow
         .step(&ReviewNode)?
         .branch::<ReviewOutcome>()
-        .on(ReviewDecision::Approve, ApproveTransition, ReviewOutcome::Approved)?
+        .on(
+            ReviewDecision::Approve,
+            ApproveTransition,
+            ReviewOutcome::Approved,
+        )?
         .on(
             ReviewDecision::RequestChanges,
             RequestChangesTransition,

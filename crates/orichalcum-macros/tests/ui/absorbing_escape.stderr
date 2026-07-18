@@ -1,0 +1,11 @@
+error: [SM012] absorbing state `Cancelled` cannot transition to `Reopened`
+  --> tests/ui/absorbing_escape.rs:10:16
+   |
+10 |     transition reopen: Cancelled -> Reopened;
+   |                ^^^^^^
+
+error: [SM013] absorbing state `Cancelled` must declare a self-transition
+ --> tests/ui/absorbing_escape.rs:7:15
+  |
+7 |     absorbing Cancelled;
+  |               ^^^^^^^^^

@@ -1,0 +1,5 @@
+error: [SM007] transition `leave` has unknown destination state `Missing`
+ --> tests/ui/unknown_destination.rs:8:16
+  |
+8 |     transition leave: Start -> Missing;
+  |                ^^^^^

@@ -1,0 +1,5 @@
+error: [SM014] state `Lost` is unreachable from initial state `Start`
+ --> tests/ui/unreachable.rs:8:12
+  |
+8 |     active Lost;
+  |            ^^^^

@@ -21,7 +21,7 @@ Orichalcum is a spiritual successor to Python's [PocketFlow](https://github.com/
 *   **Node**: The fundamental unit of work. A `Node` encapsulates a piece of logic with three steps: `prep` (prepare inputs), `exec` (execute the core logic), and `post` (process results and update state).
 *   **Flow**: A special `Node` that orchestrates a graph of other `Node`s. It manages the execution sequence based on the outputs of each `Node`.
 *   **Shared State**: A `HashMap` that is passed through the entire `Flow`. Nodes can read from this state to get context and write to it to pass results to subsequent nodes.
-*   **Semantic Layer (v0.5.0)**: Define structural contracts for your nodes using `Signature`. This allows for compile-time or runtime validation of your workflows.
+*   **Semantic Layer (v0.5.0)**: Define structural contracts for your nodes using `Signature` and validate dynamic workflow data flow before execution.
 
 ## Installation
 
@@ -36,6 +36,41 @@ orichalcum = "0.5.0"
 
 # For Telemetry features (tracing, optimization registry)
 # orichalcum = { version = "0.5.0", features = ["telemetry"] }
+
+# For the experimental compiler-verified graph API
+# orichalcum = { version = "0.5.0", features = ["experimental-graph"] }
+```
+
+For repository development and release verification, see [CONTRIBUTING.md](CONTRIBUTING.md).
+The compiler-verified graph direction is specified in [docs/STATE_MACHINE_VALIDITY.md](docs/STATE_MACHINE_VALIDITY.md).
+Typed failure ownership and mutation behavior are specified in [docs/TYPED_EXECUTION_SEMANTICS.md](docs/TYPED_EXECUTION_SEMANTICS.md).
+
+### Experimental compiler-verified graphs
+
+The `experimental-graph` feature exposes the current whole-graph procedural macro. It
+validates structural invariants during compilation and generates phase-specific execution
+methods. This preview API may change between 0.x releases.
+
+```rust
+use std::convert::Infallible;
+use orichalcum::experimental_state_machine;
+
+experimental_state_machine! {
+    machine review_flow;
+    initial Draft;
+    active Draft;
+    terminal Approved;
+    transition approve: Draft -> Approved;
+}
+
+let approved = review_flow::Definition::start(Vec::<&str>::new())
+    .approve(|events| {
+        events.push("approved");
+        Ok::<(), Infallible>(())
+    })
+    .expect("the effect is infallible");
+
+assert_eq!(approved.into_data(), ["approved"]);
 ```
 
 ## Quick Start: Semantic LLM Nodes (v0.5.0)
@@ -44,11 +79,12 @@ The most powerful way to use Orichalcum is via **Semantic Nodes**. These nodes h
 
 ```rust
 use orichalcum::prelude::*;
+use orichalcum::{Client, HashMap, signature};
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     // 1. Initialize an LLM client (requires "llm" feature)
-    let client = Client::with_ollama();
+    let client = Client::new().with_ollama();
 
     // 2. Define a semantic signature
     let signature = signature!("document -> summary, sentiment");
@@ -61,7 +97,7 @@ async fn main() {
         .seal(); // Returns a SealedNode (wrapped in Executable)
 
     // 4. Run it in a flow
-    let mut flow = AsyncFlow::new_from_executable(node);
+    let flow = AsyncFlow::new(node);
     let mut state = HashMap::new();
     state.insert("document".to_string(), "Rust is a multi-paradigm, general-purpose programming language...".into());
 
@@ -222,6 +258,10 @@ match outcome {
 ```
 
 The typed API enforces phase legality for nodes, transitions, and registered branch handlers at compile time. It does not yet provide compile-time exhaustive route coverage; missing route handlers and missing finish handlers are surfaced as runtime branch execution errors.
+
+Use `step_recovering`, `transition_recovering`, and `finish_recovering` when a failure
+must return the source-phase flow for inspection or retry. Mutations performed before an
+error remain visible; Orichalcum does not silently roll domain data back.
 
 ## Traditional Example: A Simple Sync Flow
 

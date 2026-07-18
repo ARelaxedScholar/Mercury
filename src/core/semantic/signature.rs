@@ -97,7 +97,7 @@ impl FromStr for Signature {
 #[macro_export]
 macro_rules! signature {
     ($s:expr) => {
-        $s.parse::<$crate::core::semantic::signature::Signature>()
+        $s.parse::<$crate::Signature>()
             .expect("Invalid signature shorthand")
     };
 }

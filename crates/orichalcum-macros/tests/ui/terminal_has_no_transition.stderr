@@ -1,0 +1,17 @@
+error[E0599]: no method named `complete` found for struct `Execution<terminal_execution::Done, ()>` in the current scope
+  --> tests/ui/terminal_has_no_transition.rs:15:18
+   |
+3  | / experimental_state_machine! {
+4  | |     machine terminal_execution;
+5  | |     initial Running;
+6  | |     active Running;
+7  | |     terminal Done;
+8  | |     transition complete: Running -> Done;
+9  | | }
+   | |_- method `complete` not found for this struct
+...
+15 |       let _ = done.complete(|_| Ok::<(), ()>(()));
+   |                    ^^^^^^^^ method not found in `Execution<Done, ()>`
+   |
+   = note: the method was found for
+           - `Execution<Running, D>`
