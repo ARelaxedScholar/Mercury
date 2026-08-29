@@ -101,3 +101,83 @@ macro_rules! signature {
             .expect("Invalid signature shorthand")
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_from_str_basic() {
+        let sig = Signature::from_str("in1, in2 -> out1").unwrap();
+        assert_eq!(sig.inputs.len(), 2);
+        assert_eq!(sig.inputs[0].name, "in1");
+        assert_eq!(sig.inputs[1].name, "in2");
+        assert_eq!(sig.outputs.len(), 1);
+        assert_eq!(sig.outputs[0].name, "out1");
+    }
+
+    #[test]
+    fn test_from_str_single() {
+        let sig = Signature::from_str("in -> out").unwrap();
+        assert_eq!(sig.inputs.len(), 1);
+        assert_eq!(sig.inputs[0].name, "in");
+        assert_eq!(sig.outputs.len(), 1);
+        assert_eq!(sig.outputs[0].name, "out");
+    }
+
+    #[test]
+    fn test_from_str_no_inputs() {
+        let sig = Signature::from_str(" -> out").unwrap();
+        assert_eq!(sig.inputs.len(), 0);
+        assert_eq!(sig.outputs.len(), 1);
+        assert_eq!(sig.outputs[0].name, "out");
+    }
+
+    #[test]
+    fn test_from_str_no_outputs() {
+        let sig = Signature::from_str("in -> ").unwrap();
+        assert_eq!(sig.inputs.len(), 1);
+        assert_eq!(sig.inputs[0].name, "in");
+        assert_eq!(sig.outputs.len(), 0);
+    }
+
+    #[test]
+    fn test_from_str_empty() {
+        let sig = Signature::from_str(" -> ").unwrap();
+        assert_eq!(sig.inputs.len(), 0);
+        assert_eq!(sig.outputs.len(), 0);
+    }
+
+    #[test]
+    fn test_from_str_whitespace() {
+        let sig = Signature::from_str("  in1  ,  in2  ->  out1  ").unwrap();
+        assert_eq!(sig.inputs.len(), 2);
+        assert_eq!(sig.inputs[0].name, "in1");
+        assert_eq!(sig.inputs[1].name, "in2");
+        assert_eq!(sig.outputs.len(), 1);
+        assert_eq!(sig.outputs[0].name, "out1");
+    }
+
+    #[test]
+    fn test_from_str_redundant_commas() {
+        let sig = Signature::from_str("in1, , in2 -> out1").unwrap();
+        assert_eq!(sig.inputs.len(), 2);
+        assert_eq!(sig.inputs[0].name, "in1");
+        assert_eq!(sig.inputs[1].name, "in2");
+    }
+
+    #[test]
+    fn test_from_str_error_no_arrow() {
+        let result = Signature::from_str("in out");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Signature must contain exactly one '->'");
+    }
+
+    #[test]
+    fn test_from_str_error_multiple_arrows() {
+        let result = Signature::from_str("in -> mid -> out");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Signature must contain exactly one '->'");
+    }
+}
